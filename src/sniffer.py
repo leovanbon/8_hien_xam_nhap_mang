@@ -1,10 +1,19 @@
-from scapy.all import sniff, IP, TCP, UDP, ICMP
+from scapy.all import IP, sniff
 import datetime
 
+
 class NIDSSniffer:
-    def __init__(self, interface=None, callback_function=None):
+    def __init__(
+        self,
+        interface=None,
+        callback_function=None,
+        bpf_filter="ip",
+        packet_count=0,
+    ):
         self.interface = interface
         self.packet_handler = callback_function
+        self.bpf_filter = bpf_filter
+        self.packet_count = packet_count
 
     def _process_packet(self, packet):
         if packet.haslayer(IP):
@@ -20,8 +29,17 @@ class NIDSSniffer:
 
     def start(self):
         print(f"[*] Starting sniffer on {self.interface if self.interface else 'all interfaces'}...")
+        print(f"[*] BPF filter: {self.bpf_filter or 'none'}")
         try:
-            sniff(iface=self.interface, prn=self._process_packet, store=0)
+            sniff(
+                iface=self.interface,
+                filter=self.bpf_filter,
+                prn=self._process_packet,
+                store=0,
+                count=self.packet_count,
+            )
+        except KeyboardInterrupt:
+            print("\n[*] Sniffer stopped.")
         except PermissionError:
             print("[!] Error: Sniffing requires Root/Admin privileges.")
         except Exception as e:
