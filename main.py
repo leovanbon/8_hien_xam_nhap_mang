@@ -1,97 +1,60 @@
+from __future__ import annotations
+
 import argparse
+from pathlib import Path
 
-from src.alert import AlertLogger
-from src.detector import RuleBasedDetector
+from nids.capture import read_pcap, sniff_live
+from nids.engine import NIDSEngine
+from nids.storage import AlertStore
 
 
-def build_argument_parser():
-    parser = argparse.ArgumentParser(
-        description="Simple rule-based Network Intrusion Detection System demo."
-    )
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Simple rule-based NIDS")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--pcap", help="Path to a PCAP file to analyze")
+    source.add_argument("--iface", help="Network interface for live capture")
+    parser.add_argument("--limit", type=int, default=0, help="Live packet capture limit")
     parser.add_argument(
-        "-i",
-        "--interface",
-        default=None,
-        help="Network interface to sniff. Omit to let Scapy choose.",
-    )
-    parser.add_argument(
-        "-f",
-        "--filter",
-        default="ip",
-        help="BPF capture filter passed to Scapy. Default: ip.",
-    )
-    parser.add_argument(
-        "-c",
-        "--count",
-        type=int,
-        default=0,
-        help="Stop after this many packets. Default: 0, run until Ctrl+C.",
-    )
-    parser.add_argument(
-        "--log",
-        default=None,
-        help="Optional JSON Lines file to append alerts to.",
-    )
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Do not print alerts to the terminal.",
-    )
-    parser.add_argument(
-        "--icmp-threshold",
-        type=int,
-        default=10,
-        help="Alert after this many ICMP packets within the ICMP window.",
-    )
-    parser.add_argument(
-        "--icmp-window",
-        type=int,
-        default=10,
-        help="ICMP flood detection window in seconds.",
-    )
-    parser.add_argument(
-        "--port-scan-threshold",
-        type=int,
-        default=10,
-        help="Alert after this many distinct TCP destination ports within the scan window.",
-    )
-    parser.add_argument(
-        "--port-scan-window",
-        type=int,
-        default=30,
-        help="Port scan detection window in seconds.",
+        "--alerts",
+        default="data/alerts.jsonl",
+        help="Path where alerts are written as JSONL",
     )
     return parser
 
 
-def main():
-    args = build_argument_parser().parse_args()
+def print_alerts(alerts: list) -> None:
+    for alert in alerts:
+        print(
+            f"[{alert.severity}] {alert.attack_type}: "
+            f"{alert.description} ({alert.rule_id})"
+        )
 
-    from src.parser import PacketParser
-    from src.sniffer import NIDSSniffer
 
-    packet_parser = PacketParser()
-    detector = RuleBasedDetector(
-        icmp_threshold=args.icmp_threshold,
-        icmp_window_seconds=args.icmp_window,
-        port_scan_threshold=args.port_scan_threshold,
-        port_scan_window_seconds=args.port_scan_window,
-    )
-    alert_logger = AlertLogger(log_path=args.log, quiet=args.quiet)
+def main() -> int:
+    args = build_parser().parse_args()
+    engine = NIDSEngine(store=AlertStore(args.alerts))
 
-    def analyze_packet(packet):
-        parsed_packet = packet_parser.parse(packet)
-        for alert in detector.analyze(parsed_packet):
-            alert_logger.emit(alert)
+    if args.pcap:
+        pcap_path = Path(args.pcap)
+        if not pcap_path.exists():
+            print(f"PCAP not found: {pcap_path}")
+            return 2
 
-    nids = NIDSSniffer(
-        interface=args.interface,
-        callback_function=analyze_packet,
-        bpf_filter=args.filter,
-        packet_count=args.count,
-    )
-    nids.start()
+        for event in read_pcap(str(pcap_path)):
+            print_alerts(engine.process_event(event))
+    else:
+        def on_event(event) -> None:
+            print_alerts(engine.process_event(event))
+
+        sniff_live(args.iface, on_event, limit=args.limit)
+
+    summary = engine.summary()
+    print("\nSummary")
+    print(f"Packets processed: {summary['packet_count']}")
+    print(f"Alerts generated: {summary['alert_count']}")
+    print(f"Protocol counts: {summary['protocol_counts']}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

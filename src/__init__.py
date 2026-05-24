@@ -1,1 +1,0 @@
-"""Simple NIDS demo package."""
