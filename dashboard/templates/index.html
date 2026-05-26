@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Simple NIDS Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Simple NIDS</h1>
+        <p>Rule-based network intrusion alerts</p>
+      </div>
+      <div class="total">
+        <span>{{ total_alerts }}</span>
+        <small>Total alerts</small>
+      </div>
+    </header>
+
+    <main>
+      <section class="metrics">
+        <article>
+          <h2>Alert Types</h2>
+          {% if alerts_by_type %}
+            <ul>
+              {% for name, count in alerts_by_type.items() %}
+                <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty">No alerts recorded yet.</p>
+          {% endif %}
+        </article>
+
+        <article>
+          <h2>Severity</h2>
+          {% if severity_counts %}
+            <ul>
+              {% for name, count in severity_counts.items() %}
+                <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty">No severity data.</p>
+          {% endif %}
+        </article>
+
+        <article>
+          <h2>Top Sources</h2>
+          {% if top_sources %}
+            <ul>
+              {% for source, count in top_sources %}
+                <li><span>{{ source }}</span><strong>{{ count }}</strong></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty">No source data.</p>
+          {% endif %}
+        </article>
+      </section>
+
+      <section class="table-section">
+        <h2>Recent Alerts</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Severity</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for alert in alerts %}
+                <tr>
+                  <td>{{ alert.timestamp }}</td>
+                  <td><span class="badge">{{ alert.severity }}</span></td>
+                  <td>{{ alert.attack_type }}</td>
+                  <td>{{ alert.source_ip or "unknown" }}</td>
+                  <td>{{ alert.destination_ip or "unknown" }}</td>
+                  <td>{{ alert.description }}</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="6" class="empty-row">No alerts available.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
