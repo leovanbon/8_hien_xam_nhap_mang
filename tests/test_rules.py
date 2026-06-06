@@ -91,6 +91,59 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0].attack_type, "Suspicious DNS Query")
 
+    def test_dns_tunneling_suspicion_alerts_after_threshold(self) -> None:
+        rules = SlidingWindowRules(
+            RuleConfig(
+                suspicious_domains=set(),
+                dns_tunnel_window_seconds=10,
+                dns_tunnel_suspicious_count=2,
+                dns_tunnel_min_label_length=40,
+            )
+        )
+
+        alerts = []
+        for offset in range(2):
+            alerts.extend(
+                rules.evaluate(
+                    event(
+                        timestamp=float(offset),
+                        protocol="DNS",
+                        dst_port=53,
+                        dns_query=f"{'a' * 42}{offset}.tunnel.example",
+                    )
+                )
+            )
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0].rule_id, "RULE-005")
+        self.assertEqual(alerts[0].attack_type, "DNS Tunneling Suspicion")
+        self.assertEqual(alerts[0].evidence["suspicious_queries"], 2)
+        self.assertIn("long_label", alerts[0].evidence["reason_counts"])
+
+    def test_normal_dns_queries_do_not_trigger_tunneling_rule(self) -> None:
+        rules = SlidingWindowRules(
+            RuleConfig(
+                suspicious_domains=set(),
+                dns_tunnel_window_seconds=10,
+                dns_tunnel_suspicious_count=2,
+            )
+        )
+
+        alerts = []
+        for offset, query in enumerate(["www.example.com", "api.example.com"]):
+            alerts.extend(
+                rules.evaluate(
+                    event(
+                        timestamp=float(offset),
+                        protocol="DNS",
+                        dst_port=53,
+                        dns_query=query,
+                    )
+                )
+            )
+
+        self.assertEqual(alerts, [])
+
     def test_payload_signature_alerts(self) -> None:
         rules = SlidingWindowRules(
             RuleConfig(

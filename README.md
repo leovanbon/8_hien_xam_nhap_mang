@@ -19,8 +19,9 @@ ideas closely enough to make common rule syntax familiar.
   - ICMP ping floods
   - TCP SYN floods
   - Suspicious DNS domains
-- Parses and evaluates Suricata-style rules for common payload, HTTP, and DNS
-  signatures.
+  - DNS tunneling suspicion
+- Parses and evaluates user-provided Suricata-style rules for common payload,
+  HTTP, and DNS signatures.
 - Stores alerts as newline-delimited JSON in `data/alerts.jsonl` by default.
 - Shows alert counts, severity counts, top source IPs, and recent alerts in a
   Flask dashboard.
@@ -147,8 +148,24 @@ The rule engine has two layers:
   scans.
 - A Suricata-style parser and matcher for signature rules.
 
-Default rule text lives in `default_suricata_rules()` inside `nids/rules.py`.
-Custom rule text can be passed through `RuleConfig.suricata_rules`.
+Signature rules are intentionally empty by default. Suricata-style rule text can
+be passed through `RuleConfig.suricata_rules`, which makes it possible to keep
+behavior detections enabled while loading a separate signature ruleset.
+
+### Behavior Rule Defaults
+
+The behavior rules are active even when no signature rules are loaded:
+
+- `RULE-001` Port Scan: 20 unique TCP destination ports from one source in 10
+  seconds.
+- `RULE-002` ICMP Ping Flood: 100 ICMP packets from one source in 10 seconds.
+- `RULE-003` TCP SYN Flood: 100 SYN packets from one source in 10 seconds.
+- `RULE-004` Suspicious DNS Query: exact or subdomain match against
+  `malware.test`, `phishing.test`, or `bad-domain.example`.
+- `RULE-005` DNS Tunneling Suspicion: 5 suspicious DNS queries from one source
+  in 30 seconds. A DNS query is suspicious if it has a query name of at least
+  100 characters, a label of at least 45 characters, or a label of at least 24
+  characters with Shannon entropy of at least 3.8.
 
 Example:
 

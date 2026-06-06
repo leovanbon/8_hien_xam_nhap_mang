@@ -74,6 +74,11 @@ def main() -> int:
             port_scan_unique_ports=5,
             icmp_flood_packet_count=5,
             syn_flood_syn_count=5,
+            suricata_rules=(
+                'alert tcp any any -> any 80 (msg:"SQL Injection Attempt"; '
+                'content:"\' or \'1\'=\'1"; nocase; '
+                'classtype:web-application-attack; priority:1; sid:900100; rev:1;)',
+            ),
         )
     )
     engine = NIDSEngine(rules=rules, store=AlertStore(alert_path))

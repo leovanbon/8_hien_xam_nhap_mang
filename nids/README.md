@@ -69,10 +69,23 @@ parsing, and detection separate.
 2. ICMP flood detector.
 3. SYN flood detector.
 4. Suspicious DNS domain detector.
-5. Suricata-style signature engine.
+5. DNS tunneling suspicion detector.
+6. Suricata-style signature engine.
 
 The behavior detectors use sliding windows keyed by source IP. They suppress
 repeat alerts for the same source/rule for five seconds.
+
+Current behavior rules:
+
+- `RULE-001` Port Scan
+- `RULE-002` ICMP Ping Flood
+- `RULE-003` TCP SYN Flood
+- `RULE-004` Suspicious DNS Query
+- `RULE-005` DNS Tunneling Suspicion
+
+The DNS tunneling detector marks a query suspicious when it sees long query
+names, long labels, or high-entropy labels, then alerts after enough suspicious
+queries from the same source appear within the configured window.
 
 ## Suricata-Style Parser
 
@@ -130,8 +143,8 @@ rules = SlidingWindowRules(
 )
 ```
 
-To change the default rules for the whole project, edit
-`default_suricata_rules()` in `rules.py`.
+Built-in signature defaults are intentionally empty. To load signatures, pass
+Suricata-style rule strings through `RuleConfig.suricata_rules`.
 
 ## Adding A New Behavior Detector
 

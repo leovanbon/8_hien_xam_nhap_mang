@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import math
 import re
 from collections import defaultdict, deque
 from dataclasses import dataclass, field, replace
@@ -44,20 +45,7 @@ def default_signatures() -> tuple[Signature, ...]:
 
 
 def default_suricata_rules() -> tuple[str, ...]:
-    return (
-        'alert tcp any any -> any any (msg:"Directory Traversal Attempt"; '
-        'content:"../"; nocase; classtype:web-application-attack; priority:1; '
-        "sid:100001; rev:1;)",
-        'alert tcp any any -> any any (msg:"SQL Injection Attempt"; '
-        'content:"\' or \'1\'=\'1"; nocase; classtype:web-application-attack; '
-        "priority:1; sid:100002; rev:1;)",
-        'alert http any any -> any any (msg:"XSS Attempt"; http.uri; '
-        'content:"<script"; nocase; classtype:web-application-attack; '
-        "priority:2; sid:100003; rev:1;)",
-        'alert http any any -> any any (msg:"Suspicious User Agent"; '
-        'http.user_agent; content:"sqlmap"; nocase; classtype:attempted-recon; '
-        "priority:2; sid:100004; rev:1;)",
-    )
+    return ()
 
 
 @dataclass(frozen=True)
@@ -68,6 +56,12 @@ class RuleConfig:
     icmp_flood_packet_count: int = 100
     syn_flood_window_seconds: int = 10
     syn_flood_syn_count: int = 100
+    dns_tunnel_window_seconds: int = 30
+    dns_tunnel_suspicious_count: int = 5
+    dns_tunnel_min_query_length: int = 100
+    dns_tunnel_min_label_length: int = 45
+    dns_tunnel_min_label_entropy: float = 3.8
+    dns_tunnel_entropy_label_length: int = 24
     suspicious_domains: set[str] = field(
         default_factory=lambda: {
             "malware.test",
@@ -656,6 +650,9 @@ class SlidingWindowRules:
         self._dest_ports_by_src: dict[str, deque[tuple[float, int]]] = defaultdict(deque)
         self._icmp_by_src: dict[str, deque[float]] = defaultdict(deque)
         self._syn_by_src: dict[str, deque[float]] = defaultdict(deque)
+        self._dns_tunnel_by_src: dict[str, deque[tuple[float, str, tuple[str, ...]]]] = (
+            defaultdict(deque)
+        )
         self._recent_alert_keys: dict[tuple[str, str], float] = {}
         self._cooldown_seconds = 5
 
@@ -679,6 +676,10 @@ class SlidingWindowRules:
         dns_alert = self._detect_suspicious_dns(event)
         if dns_alert:
             alerts.append(dns_alert)
+
+        dns_tunnel_alert = self._detect_dns_tunneling(event)
+        if dns_tunnel_alert:
+            alerts.append(dns_tunnel_alert)
 
         alerts.extend(self.suricata.evaluate(event))
 
@@ -790,6 +791,77 @@ class SlidingWindowRules:
             description=f"{event.src_ip} queried suspicious domain {query}",
             evidence={"query": query, "matched_domain": suspicious_match},
         )
+
+    def _detect_dns_tunneling(self, event: PacketEvent) -> Alert | None:
+        if not event.dns_query:
+            return None
+
+        query = event.dns_query.lower().rstrip(".")
+        reasons = self._dns_tunnel_reasons(query)
+        if not reasons:
+            return None
+
+        window = self._dns_tunnel_by_src[event.src_ip or ""]
+        window.append((event.timestamp, query, tuple(reasons)))
+        while window and event.timestamp - window[0][0] > self.config.dns_tunnel_window_seconds:
+            window.popleft()
+
+        if len(window) < self.config.dns_tunnel_suspicious_count:
+            return None
+
+        recent_queries = [entry[1] for entry in window]
+        reason_counts: dict[str, int] = defaultdict(int)
+        for _, _, entry_reasons in window:
+            for reason in entry_reasons:
+                reason_counts[reason] += 1
+
+        return self._alert_once(
+            now=event.timestamp,
+            rule_id="RULE-005",
+            key=event.src_ip or "unknown",
+            attack_type="DNS Tunneling Suspicion",
+            severity="Medium",
+            source_ip=event.src_ip,
+            destination_ip=event.dst_ip,
+            description=(
+                f"{event.src_ip} sent {len(window)} DNS queries with tunneling "
+                f"indicators in {self.config.dns_tunnel_window_seconds} seconds"
+            ),
+            evidence={
+                "suspicious_queries": len(window),
+                "recent_queries": recent_queries[-5:],
+                "reason_counts": dict(reason_counts),
+                "latest_query": query,
+            },
+        )
+
+    def _dns_tunnel_reasons(self, query: str) -> list[str]:
+        reasons: list[str] = []
+        labels = [label for label in query.split(".") if label]
+        longest_label = max((len(label) for label in labels), default=0)
+        highest_entropy = max((self._shannon_entropy(label) for label in labels), default=0.0)
+
+        if len(query) >= self.config.dns_tunnel_min_query_length:
+            reasons.append("long_query_name")
+        if longest_label >= self.config.dns_tunnel_min_label_length:
+            reasons.append("long_label")
+        if (
+            longest_label >= self.config.dns_tunnel_entropy_label_length
+            and highest_entropy >= self.config.dns_tunnel_min_label_entropy
+        ):
+            reasons.append("high_entropy_label")
+
+        return reasons
+
+    @staticmethod
+    def _shannon_entropy(value: str) -> float:
+        if not value:
+            return 0.0
+        counts: dict[str, int] = defaultdict(int)
+        for char in value:
+            counts[char] += 1
+        length = len(value)
+        return -sum((count / length) * math.log2(count / length) for count in counts.values())
 
     def _alert_once(
         self,
