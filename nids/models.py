@@ -20,6 +20,11 @@ class PacketEvent:
     length: int
     tcp_flags: str | None = None
     dns_query: str | None = None
+    payload_text: str | None = None
+    http_method: str | None = None
+    http_uri: str | None = None
+    http_host: str | None = None
+    http_user_agent: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

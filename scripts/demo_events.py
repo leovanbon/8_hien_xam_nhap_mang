@@ -51,6 +51,19 @@ def dns_event(timestamp: float, src_ip: str, query: str) -> PacketEvent:
     )
 
 
+def payload_event(timestamp: float, src_ip: str, payload_text: str) -> PacketEvent:
+    return PacketEvent(
+        timestamp=timestamp,
+        src_ip=src_ip,
+        dst_ip="192.168.1.80",
+        src_port=51000,
+        dst_port=80,
+        protocol="TCP",
+        length=len(payload_text),
+        payload_text=payload_text,
+    )
+
+
 def main() -> int:
     alert_path = Path("data/alerts.jsonl")
     alert_path.parent.mkdir(parents=True, exist_ok=True)
@@ -70,6 +83,13 @@ def main() -> int:
     events.extend(icmp_event(float(i), "10.0.0.20") for i in range(5))
     events.extend(tcp_event(float(i), "10.0.0.30", 80, "S") for i in range(5))
     events.append(dns_event(1.0, "10.0.0.40", "dropper.malware.test"))
+    events.append(
+        payload_event(
+            2.0,
+            "10.0.0.50",
+            "GET /index.php?id=' OR '1'='1 HTTP/1.1\r\nHost: example.test\r\n\r\n",
+        )
+    )
 
     for event in events:
         for alert in engine.process_event(event):
