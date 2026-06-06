@@ -1,23 +1,40 @@
 # Simple NIDS Semester Project
 
-This is a small Network Intrusion Detection System framework written in Python.
-It can read packets from a PCAP file or capture live traffic, extract packet
-metadata, run simple rule-based detections, and store alerts for a Flask
-dashboard.
+This project is a small Network Intrusion Detection System written in Python.
+It can read traffic from a PCAP file or a live network interface, normalize
+packets into simple event objects, evaluate behavior rules and Suricata-style
+content rules, write alerts to JSONL, and show the results in a Flask dashboard.
 
-## Features
+The code is intentionally compact so it can be read as a learning project. It
+does not try to replace Suricata, but the rule engine follows Suricata's main
+ideas closely enough to make common rule syntax familiar.
 
-- Packet metadata extraction with Scapy
-- Rule-based detection for:
-  - Port scans
+## What It Does
+
+- Reads packets from a PCAP file or captures live traffic with Scapy.
+- Extracts normalized metadata such as IPs, ports, protocol, TCP flags, DNS
+  query names, raw payload text, and common HTTP request fields.
+- Detects behavior patterns:
+  - TCP port scans
   - ICMP ping floods
   - TCP SYN floods
-  - Suspicious DNS queries
-- JSONL alert storage
-- Minimal Flask dashboard
-- Unit tests for detection logic
+  - Suspicious DNS domains
+- Parses and evaluates Suricata-style rules for common payload, HTTP, and DNS
+  signatures.
+- Stores alerts as newline-delimited JSON in `data/alerts.jsonl` by default.
+- Shows alert counts, severity counts, top source IPs, and recent alerts in a
+  Flask dashboard.
+- Includes unit tests for behavior rules, rule parsing, sticky buffers, and
+  thresholds.
 
-## Setup
+## Requirements
+
+- Python 3.10 or newer
+- `scapy` for PCAP/live packet parsing
+- `Flask` for the dashboard
+- Root or administrator permissions for many live capture interfaces
+
+Install dependencies from `requirements.txt`:
 
 ```bash
 python3 -m venv .venv
@@ -25,65 +42,269 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Analyze A PCAP
+## Quick Start
 
-```bash
-python3 main.py --pcap sample.pcap
-```
-
-## Live Capture
-
-Live packet capture often needs administrator/root privileges.
-
-```bash
-sudo .venv/bin/python main.py --iface eth0 --limit 500
-```
-
-## Run Dashboard
-
-```bash
-python3 dashboard/app.py
-```
-
-Then open:
-
-```text
-http://127.0.0.1:5000
-```
-
-## Generate Demo Alerts
-
-This creates sample alerts without needing a PCAP file or live capture.
+Generate demo alerts without needing real traffic:
 
 ```bash
 python3 scripts/demo_events.py
 ```
 
-## Run Tests
+Start the dashboard:
+
+```bash
+python3 dashboard/app.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000
+```
+
+Run the tests:
 
 ```bash
 python3 -m unittest discover -s tests
 ```
 
+## Analyze A PCAP
+
+Use `--pcap` to read packets from a capture file:
+
+```bash
+python3 main.py --pcap sample.pcap
+```
+
+By default alerts are appended to:
+
+```text
+data/alerts.jsonl
+```
+
+Use a different alert file:
+
+```bash
+python3 main.py --pcap sample.pcap --alerts data/lab-run.jsonl
+```
+
+## Live Capture
+
+Use `--iface` to sniff a live interface:
+
+```bash
+sudo .venv/bin/python main.py --iface eth0 --limit 500
+```
+
+`--limit 0` means Scapy keeps sniffing until interrupted. Live capture often
+requires elevated privileges because the process needs access to raw packets.
+
 ## Project Layout
 
 ```text
 .
-├── main.py
-├── requirements.txt
+├── main.py                  # CLI entry point for PCAP/live capture
+├── requirements.txt         # Python dependencies
 ├── nids/
-│   ├── capture.py
-│   ├── engine.py
-│   ├── models.py
-│   ├── parser.py
-│   ├── rules.py
-│   └── storage.py
+│   ├── README.md            # Rule engine and core module details
+│   ├── capture.py           # PCAP reader and live sniffer wrappers
+│   ├── engine.py            # NIDS orchestration and counters
+│   ├── models.py            # PacketEvent and Alert dataclasses
+│   ├── parser.py            # Scapy packet normalization
+│   ├── rules.py             # Behavior rules and Suricata-style rule engine
+│   └── storage.py           # JSONL alert storage
 ├── dashboard/
-│   ├── app.py
-│   ├── static/
-│   │   └── style.css
-│   └── templates/
-│       └── index.html
+│   ├── README.md            # Dashboard usage and data expectations
+│   ├── app.py               # Flask application
+│   ├── static/style.css     # Dashboard styles
+│   └── templates/index.html # Dashboard page
+├── scripts/
+│   └── demo_events.py       # Synthetic events for local demos
 └── tests/
-    └── test_rules.py
+    └── test_rules.py        # Unit tests for detection logic
 ```
+
+## Runtime Flow
+
+1. `main.py` receives either `--pcap` or `--iface`.
+2. `nids.capture` reads packets and passes each Scapy packet to
+   `nids.parser.packet_to_event`.
+3. `packet_to_event` converts supported packets into a `PacketEvent`.
+4. `NIDSEngine.process_event` updates counters and sends the event to
+   `SlidingWindowRules.evaluate`.
+5. `SlidingWindowRules` runs behavior detections, then the Suricata-style rule
+   engine.
+6. Matching rules create `Alert` objects.
+7. `AlertStore` appends each alert to JSONL.
+8. `dashboard/app.py` reads the JSONL file and renders summary metrics plus the
+   latest 100 alerts.
+
+## Rule Engine Overview
+
+The rule engine has two layers:
+
+- Behavior detectors for stateful traffic patterns such as floods and port
+  scans.
+- A Suricata-style parser and matcher for signature rules.
+
+Default rule text lives in `default_suricata_rules()` inside `nids/rules.py`.
+Custom rule text can be passed through `RuleConfig.suricata_rules`.
+
+Example:
+
+```python
+from nids.rules import RuleConfig, SlidingWindowRules
+
+rules = SlidingWindowRules(
+    RuleConfig(
+        suricata_rules=(
+            'alert http any any -> any 80 (msg:"Suspicious User Agent"; '
+            'http.user_agent; content:"sqlmap"; nocase; '
+            'classtype:attempted-recon; priority:2; sid:900001; rev:1;)',
+        )
+    )
+)
+```
+
+Supported Suricata-style rule shape:
+
+```text
+action protocol src_ip src_port -> dst_ip dst_port (option:value; keyword;)
+```
+
+Supported header pieces:
+
+- Actions: `alert`
+- Protocols: `ip`, `tcp`, `udp`, `icmp`, `dns`, `http`, `http1`, `http2`,
+  `tcp-pkt`
+- Direction: `->`, `<-`, `<>`
+- Addresses: `any`, single IPs, CIDR ranges, simple negation with `!`, and
+  simple bracket lists
+- Ports: `any`, single ports, ranges such as `1000:2000`, open ranges such as
+  `:1024`, simple negation with `!`, and simple bracket lists
+
+Supported options:
+
+- `msg`
+- `sid`
+- `rev`
+- `classtype`
+- `priority`
+- `flow`
+- `content`
+- `pcre`
+- `nocase`
+- `fast_pattern`
+- `threshold`
+- `detection_filter`
+- Sticky buffers:
+  - `pkt_data`
+  - `raw_data`
+  - `dns.query`
+  - `http.method`
+  - `http.uri`
+  - `http.request_line`
+  - `http.header`
+  - `http.host`
+  - `http.user_agent`
+
+This project currently treats `fast_pattern` as rule metadata. It records the
+keyword and exposes it in alert evidence, but it does not build a multi-pattern
+prefilter like Suricata does.
+
+## Alert Format
+
+Alerts are written as JSON objects, one per line:
+
+```json
+{
+  "attack_type": "HTTP SQLi",
+  "description": "10.0.0.5 matched Suricata rule 900002: HTTP SQLi",
+  "destination_ip": "192.168.1.80",
+  "evidence": {
+    "action": "alert",
+    "classtype": "unknown",
+    "contents": [
+      {
+        "buffer": "http.uri",
+        "fast_pattern": false,
+        "nocase": true,
+        "pattern": "union"
+      }
+    ],
+    "protocol": "http",
+    "rev": "1",
+    "sid": "900002"
+  },
+  "rule_id": "900002",
+  "severity": "Informational",
+  "source_ip": "10.0.0.5",
+  "timestamp": "2026-06-06T00:00:00+00:00"
+}
+```
+
+`priority` maps to severity:
+
+- `1`: `High`
+- `2`: `Medium`
+- `3`: `Low`
+- Missing or other values: `Informational`
+
+## Testing
+
+Run all tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+Compile-check the Python files:
+
+```bash
+python3 -m compileall nids tests scripts dashboard main.py
+```
+
+The tests cover:
+
+- Port scan, ICMP flood, SYN flood, and suspicious DNS behavior rules
+- Legacy `Signature` compatibility
+- Suricata-style rule parser behavior
+- HTTP and DNS sticky buffer matching
+- `detection_filter` threshold tracking
+
+## Common Troubleshooting
+
+If Scapy cannot sniff live packets, run the command with `sudo` or choose a
+different interface.
+
+If the dashboard shows no alerts, generate demo alerts first:
+
+```bash
+python3 scripts/demo_events.py
+```
+
+If PCAP parsing fails, confirm Scapy is installed inside the active virtual
+environment:
+
+```bash
+python3 -c "import scapy; print(scapy.__version__)"
+```
+
+If a rule does not match, check these fields first:
+
+- Protocol in the rule header versus `PacketEvent.protocol`
+- Destination/source port in the rule header
+- Whether the payload actually contains the HTTP request line or DNS query
+- Whether a sticky buffer was set before `content`
+- Whether `nocase` is needed
+
+## Limitations
+
+This project is educational and intentionally small. Important Suricata features
+that are not implemented include TCP stream reassembly, application protocol
+state machines, full rule variable expansion, complete rule keyword coverage,
+multi-pattern fast-pattern acceleration, file extraction, TLS parsing, and IPS
+actions such as `drop` or `reject`.
+
+For production network security monitoring, use Suricata or another maintained
+IDS/IPS engine.
