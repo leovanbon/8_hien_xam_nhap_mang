@@ -15,13 +15,9 @@
     <!-- ===== HEADER ===== -->
     <header class="topbar">
       <div class="topbar-left">
-        <div class="topbar-logo">NIDS</div>
-        <div>
-          <h1>Simple NIDS</h1>
-          <p>Real-time Network Intrusion Detection</p>
-        </div>
       </div>
       <div class="topbar-right">
+        <button id="clearAlertsBtn" style="margin-right: 10px; padding: 5px 10px; cursor: pointer;">Clear &amp; Save Old Alerts</button>
         <div class="total-badge">
           <div>
             <span class="count" id="totalAlerts">{{ total_alerts }}</span>
@@ -65,47 +61,7 @@
         </div>
       </section>
 
-      <!-- ===== METRIC PANELS ===== -->
-      <section class="metrics-row">
-        <article class="metric-panel">
-          <h2>Alert Types</h2>
-          {% if alerts_by_type %}
-            <ul class="metric-list" id="alertTypesList">
-              {% for name, count in alerts_by_type.items() %}
-                <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="empty">No alerts recorded yet.</p>
-          {% endif %}
-        </article>
 
-        <article class="metric-panel">
-          <h2>Severity Breakdown</h2>
-          {% if severity_counts %}
-            <ul class="metric-list" id="severityList">
-              {% for name, count in severity_counts.items() %}
-                <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="empty">No severity data.</p>
-          {% endif %}
-        </article>
-
-        <article class="metric-panel">
-          <h2>Top Sources</h2>
-          {% if top_sources %}
-            <ul class="metric-list" id="topSourcesList">
-              {% for source, count in top_sources %}
-                <li><span class="ip-addr">{{ source }}</span><strong>{{ count }}</strong></li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <p class="empty">No source data.</p>
-          {% endif %}
-        </article>
-      </section>
 
       <!-- ===== ALERT TABLE ===== -->
       <section class="table-section">
@@ -305,6 +261,23 @@
             console.error('Auto-refresh failed:', err);
           });
       }
+
+      /* ---- Clear Alerts ---- */
+      document.getElementById('clearAlertsBtn').addEventListener('click', function() {
+        if (!confirm("Are you sure you want to clear and save the current alerts?")) return;
+        fetch('/api/alerts/clear', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+             if (data.status === 'success') {
+                 fetchAlerts();
+                 alert('Alerts saved successfully!');
+             }
+          })
+          .catch(function(err) {
+             console.error('Clear failed:', err);
+             alert('Failed to clear alerts.');
+          });
+      });
 
     })();
     </script>

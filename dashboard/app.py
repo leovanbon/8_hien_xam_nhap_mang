@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import sys
 import time
+import shutil
+from datetime import datetime
 from collections import Counter
 from pathlib import Path
 
@@ -115,6 +117,24 @@ def api_alerts():
         "top_sources": stats["top_sources"],
         "severity_counts": dict(stats["severity_counts"]),
     })
+
+
+@app.route("/api/alerts/clear", methods=["POST"])
+def api_clear_alerts():
+    if ALERTS_PATH.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        saved_path = ALERTS_PATH.with_name(f"alerts_saved_{timestamp}.jsonl")
+        shutil.move(str(ALERTS_PATH), str(saved_path))
+    
+    ALERTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with ALERTS_PATH.open("w"):
+        pass
+
+    global _cache
+    _cache["mtime"] = 0.0
+    _cache["alerts"] = []
+
+    return jsonify({"status": "success"})
 
 
 if __name__ == "__main__":

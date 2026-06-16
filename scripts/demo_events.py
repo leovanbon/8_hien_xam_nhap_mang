@@ -95,6 +95,7 @@ def main() -> int:
             "GET /index.php?id=' OR '1'='1 HTTP/1.1\r\nHost: example.test\r\n\r\n",
         )
     )
+    events.extend(dns_event(float(i), "10.0.0.60", f"a{'b'*60}{i}.tunnel.example.com") for i in range(5))
 
     for event in events:
         for alert in engine.process_event(event):
