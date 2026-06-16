@@ -3,27 +3,74 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Simple NIDS Dashboard</title>
+    <title>Simple NIDS — Security Dashboard</title>
+    <meta name="description" content="Real-time network intrusion detection dashboard with rule-based alert monitoring">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body>
+
+    <!-- ===== HEADER ===== -->
     <header class="topbar">
-      <div>
-        <h1>Simple NIDS</h1>
-        <p>Rule-based network intrusion alerts</p>
+      <div class="topbar-left">
+        <div class="topbar-logo">NIDS</div>
+        <div>
+          <h1>Simple NIDS</h1>
+          <p>Real-time Network Intrusion Detection</p>
+        </div>
       </div>
-      <div class="total">
-        <span>{{ total_alerts }}</span>
-        <small>Total alerts</small>
+      <div class="topbar-right">
+        <div class="total-badge">
+          <div>
+            <span class="count" id="totalAlerts">{{ total_alerts }}</span>
+            <small>Total Alerts</small>
+          </div>
+        </div>
       </div>
     </header>
 
     <main>
-      <section class="metrics">
-        <article>
+
+      <!-- ===== SUMMARY CARDS ===== -->
+      <section class="summary-cards">
+        <div class="summary-card card-high">
+          <div class="card-header">
+            <span class="card-label">High Severity</span>
+            
+          </div>
+          <div class="card-value" id="countHigh">{{ severity_counts.get('High', 0) }}</div>
+        </div>
+        <div class="summary-card card-medium">
+          <div class="card-header">
+            <span class="card-label">Medium Severity</span>
+            
+          </div>
+          <div class="card-value" id="countMedium">{{ severity_counts.get('Medium', 0) }}</div>
+        </div>
+        <div class="summary-card card-low">
+          <div class="card-header">
+            <span class="card-label">Low Severity</span>
+            
+          </div>
+          <div class="card-value" id="countLow">{{ severity_counts.get('Low', 0) }}</div>
+        </div>
+        <div class="summary-card card-info">
+          <div class="card-header">
+            <span class="card-label">Informational</span>
+            
+          </div>
+          <div class="card-value" id="countInfo">{{ severity_counts.get('Informational', 0) }}</div>
+        </div>
+      </section>
+
+      <!-- ===== METRIC PANELS ===== -->
+      <section class="metrics-row">
+        <article class="metric-panel">
           <h2>Alert Types</h2>
           {% if alerts_by_type %}
-            <ul>
+            <ul class="metric-list" id="alertTypesList">
               {% for name, count in alerts_by_type.items() %}
                 <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
               {% endfor %}
@@ -33,10 +80,10 @@
           {% endif %}
         </article>
 
-        <article>
-          <h2>Severity</h2>
+        <article class="metric-panel">
+          <h2>Severity Breakdown</h2>
           {% if severity_counts %}
-            <ul>
+            <ul class="metric-list" id="severityList">
               {% for name, count in severity_counts.items() %}
                 <li><span>{{ name }}</span><strong>{{ count }}</strong></li>
               {% endfor %}
@@ -46,12 +93,12 @@
           {% endif %}
         </article>
 
-        <article>
+        <article class="metric-panel">
           <h2>Top Sources</h2>
           {% if top_sources %}
-            <ul>
+            <ul class="metric-list" id="topSourcesList">
               {% for source, count in top_sources %}
-                <li><span>{{ source }}</span><strong>{{ count }}</strong></li>
+                <li><span class="ip-addr">{{ source }}</span><strong>{{ count }}</strong></li>
               {% endfor %}
             </ul>
           {% else %}
@@ -60,8 +107,24 @@
         </article>
       </section>
 
+      <!-- ===== ALERT TABLE ===== -->
       <section class="table-section">
-        <h2>Recent Alerts</h2>
+        <div class="table-header">
+          <h2>Recent Alerts</h2>
+          <div class="table-controls">
+            <div class="filter-pills">
+              <button class="filter-pill active" data-severity="all">All</button>
+              <button class="filter-pill" data-severity="High">High</button>
+              <button class="filter-pill" data-severity="Medium">Medium</button>
+              <button class="filter-pill" data-severity="Low">Low</button>
+              <button class="filter-pill" data-severity="Informational">Info</button>
+            </div>
+            <div class="search-box">
+              <input type="text" id="searchInput" placeholder="Search IP, type, desc…" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
@@ -74,15 +137,21 @@
                 <th>Description</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="alertsTableBody">
               {% for alert in alerts %}
-                <tr>
-                  <td>{{ alert.timestamp }}</td>
-                  <td><span class="badge">{{ alert.severity }}</span></td>
-                  <td>{{ alert.attack_type }}</td>
-                  <td>{{ alert.source_ip or "unknown" }}</td>
-                  <td>{{ alert.destination_ip or "unknown" }}</td>
-                  <td>{{ alert.description }}</td>
+                <tr data-severity="{{ alert.severity }}" data-searchable="{{ alert.source_ip or '' }} {{ alert.destination_ip or '' }} {{ alert.attack_type }} {{ alert.description }}">
+                  <td class="col-time">{{ alert.timestamp[:19].replace('T', ' ') if alert.timestamp|length > 19 else alert.timestamp }}</td>
+                  <td>
+                    {% set sev = alert.severity|lower %}
+                    <span class="severity-badge severity-{{ sev }}">
+                      <span class="severity-dot"></span>
+                      {{ alert.severity }}
+                    </span>
+                  </td>
+                  <td class="col-type">{{ alert.attack_type }}</td>
+                  <td class="col-ip">{{ alert.source_ip or "—" }}</td>
+                  <td class="col-ip">{{ alert.destination_ip or "—" }}</td>
+                  <td class="col-desc" title="{{ alert.description }}">{{ alert.description }}</td>
                 </tr>
               {% else %}
                 <tr>
@@ -92,7 +161,153 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <nav class="pagination" id="pagination">
+          {% if page > 1 %}
+            <a href="?page={{ page - 1 }}&per_page={{ per_page }}">&laquo; Prev</a>
+          {% else %}
+            <span class="disabled">&laquo; Prev</span>
+          {% endif %}
+
+          {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+              <span class="current">{{ p }}</span>
+            {% elif p <= 3 or p > total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+              <a href="?page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
+            {% elif p == 4 and page > 5 %}
+              <span class="disabled">…</span>
+            {% elif p == total_pages - 2 and page < total_pages - 4 %}
+              <span class="disabled">…</span>
+            {% endif %}
+          {% endfor %}
+
+          {% if page < total_pages %}
+            <a href="?page={{ page + 1 }}&per_page={{ per_page }}">Next &raquo;</a>
+          {% else %}
+            <span class="disabled">Next &raquo;</span>
+          {% endif %}
+        </nav>
+        {% endif %}
       </section>
+
     </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="dashboard-footer">
+      <div class="footer-content">
+        <span>Simple NIDS Dashboard</span>
+        <span class="footer-dot"></span>
+        <span>Page {{ page }} of {{ total_pages }}</span>
+      </div>
+    </footer>
+
+    <!-- ===== JAVASCRIPT ===== -->
+    <script>
+    (function() {
+      'use strict';
+
+      /* ---- Severity filter ---- */
+      const pills = document.querySelectorAll('.filter-pill');
+      const tbody = document.getElementById('alertsTableBody');
+      let activeFilter = 'all';
+
+      pills.forEach(function(pill) {
+        pill.addEventListener('click', function() {
+          pills.forEach(function(p) { p.classList.remove('active'); });
+          pill.classList.add('active');
+          activeFilter = pill.dataset.severity;
+          applyFilters();
+        });
+      });
+
+      /* ---- Search ---- */
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', applyFilters);
+
+      function applyFilters() {
+        const query = searchInput.value.toLowerCase().trim();
+        const rows = tbody.querySelectorAll('tr[data-severity]');
+
+        rows.forEach(function(row) {
+          const sev = row.dataset.severity;
+          const text = row.dataset.searchable.toLowerCase();
+
+          const matchSeverity = activeFilter === 'all' || sev === activeFilter;
+          const matchSearch = !query || text.indexOf(query) !== -1;
+
+          row.style.display = (matchSeverity && matchSearch) ? '' : 'none';
+        });
+      }
+
+      /* ---- Auto-refresh ---- */
+      const totalEl = document.getElementById('totalAlerts');
+      const countHigh = document.getElementById('countHigh');
+      const countMedium = document.getElementById('countMedium');
+      const countLow = document.getElementById('countLow');
+      const countInfo = document.getElementById('countInfo');
+
+      let lastTotal = parseInt(totalEl.textContent) || 0;
+
+      setInterval(fetchAlerts, 1000); // 1-second real-time polling
+
+      function fetchAlerts() {
+        const params = new URLSearchParams(window.location.search);
+        const page = params.get('page') || '1';
+        const perPage = params.get('per_page') || '100';
+
+        fetch('/api/alerts?page=' + page + '&per_page=' + perPage)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            /* Update counters */
+            totalEl.textContent = data.total_alerts;
+            countHigh.textContent = data.severity_counts['High'] || 0;
+            countMedium.textContent = data.severity_counts['Medium'] || 0;
+            countLow.textContent = data.severity_counts['Low'] || 0;
+            countInfo.textContent = data.severity_counts['Informational'] || 0;
+
+            /* Rebuild table rows */
+            var html = '';
+            if (data.alerts.length === 0) {
+              html = '<tr><td colspan="6" class="empty-row">No alerts available.</td></tr>';
+            } else {
+              data.alerts.forEach(function(a, i) {
+                var isNew = data.total_alerts > lastTotal && i < (data.total_alerts - lastTotal);
+                var sev = (a.severity || '').toLowerCase();
+                var ts = a.timestamp || '';
+                if (ts.length > 19) ts = ts.substring(0, 19).replace('T', ' ');
+                var searchable = (a.source_ip || '') + ' ' + (a.destination_ip || '') + ' ' + a.attack_type + ' ' + a.description;
+
+                html += '<tr data-severity="' + a.severity + '" data-searchable="' + searchable.replace(/"/g, '&quot;') + '"' + (isNew ? ' class="new-alert"' : '') + '>';
+                html += '<td class="col-time">' + ts + '</td>';
+                html += '<td><span class="severity-badge severity-' + sev + '"><span class="severity-dot"></span>' + a.severity + '</span></td>';
+                html += '<td class="col-type">' + a.attack_type + '</td>';
+                html += '<td class="col-ip">' + (a.source_ip || '—') + '</td>';
+                html += '<td class="col-ip">' + (a.destination_ip || '—') + '</td>';
+                html += '<td class="col-desc" title="' + (a.description || '').replace(/"/g, '&quot;') + '">' + (a.description || '') + '</td>';
+                html += '</tr>';
+              });
+            }
+
+            tbody.innerHTML = html;
+            lastTotal = data.total_alerts;
+
+            /* Re-apply filters */
+            applyFilters();
+
+            /* Pulse animation on total */
+            totalEl.style.animation = 'none';
+            totalEl.offsetHeight; /* reflow */
+            totalEl.style.animation = 'pulse 0.6s ease';
+          })
+          .catch(function(err) {
+            console.error('Auto-refresh failed:', err);
+          });
+      }
+
+    })();
+    </script>
+
   </body>
 </html>

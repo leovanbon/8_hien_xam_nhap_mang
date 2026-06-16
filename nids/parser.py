@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .models import PacketEvent
+from .http_utils import parse_http_payload
+
+logger = logging.getLogger(__name__)
 
 
 def scapy_available() -> bool:
@@ -11,37 +15,6 @@ def scapy_available() -> bool:
     except ImportError:
         return False
     return True
-
-
-def parse_http_payload(payload_text: str | None) -> dict[str, str | None]:
-    if not payload_text:
-        return {
-            "http_method": None,
-            "http_uri": None,
-            "http_host": None,
-            "http_user_agent": None,
-        }
-
-    lines = payload_text.splitlines()
-    request_line = lines[0] if lines else ""
-    parts = request_line.split()
-    method = parts[0] if len(parts) >= 2 and parts[0].isalpha() else None
-    uri = parts[1] if method else None
-    headers: dict[str, str] = {}
-    for line in lines[1:]:
-        if not line.strip():
-            break
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        headers[key.strip().lower()] = value.strip()
-
-    return {
-        "http_method": method,
-        "http_uri": uri,
-        "http_host": headers.get("host"),
-        "http_user_agent": headers.get("user-agent"),
-    }
 
 
 def packet_to_event(packet: Any) -> PacketEvent | None:
@@ -85,9 +58,11 @@ def packet_to_event(packet: Any) -> PacketEvent | None:
 
     if Raw in packet:
         raw_bytes = bytes(packet[Raw].load)
+        if len(raw_bytes) > 2048:
+            logger.warning("Payload truncated from %d to 2048 bytes for %s -> %s", len(raw_bytes), ip_layer.src, ip_layer.dst)
         payload_text = raw_bytes[:2048].decode("utf-8", errors="replace")
 
-    http_fields = parse_http_payload(payload_text)
+    http_fields = parse_http_payload(payload_text or "")
 
     return PacketEvent(
         timestamp=float(packet.time),
@@ -100,8 +75,8 @@ def packet_to_event(packet: Any) -> PacketEvent | None:
         tcp_flags=tcp_flags,
         dns_query=dns_query,
         payload_text=payload_text,
-        http_method=http_fields["http_method"],
-        http_uri=http_fields["http_uri"],
-        http_host=http_fields["http_host"],
-        http_user_agent=http_fields["http_user_agent"],
+        http_method=http_fields.get("method") or None,
+        http_uri=http_fields.get("uri") or None,
+        http_host=http_fields.get("host") or None,
+        http_user_agent=http_fields.get("user_agent") or None,
     )

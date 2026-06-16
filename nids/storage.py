@@ -17,8 +17,9 @@ class AlertStore:
             file.write(json.dumps(alert.to_dict(), sort_keys=True) + "\n")
 
     def append_many(self, alerts: Iterable[Alert]) -> None:
-        for alert in alerts:
-            self.append(alert)
+        with self.path.open("a", encoding="utf-8") as file:
+            for alert in alerts:
+                file.write(json.dumps(alert.to_dict(), sort_keys=True) + "\n")
 
     def read_all(self) -> list[dict]:
         if not self.path.exists():
