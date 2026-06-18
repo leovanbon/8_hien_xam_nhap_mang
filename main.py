@@ -5,6 +5,7 @@ from pathlib import Path
 
 from nids.capture import read_pcap, sniff_live
 from nids.engine import NIDSEngine
+from nids.rules import RuleConfig, SlidingWindowRules
 from nids.storage import AlertStore
 
 
@@ -19,7 +20,25 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/alerts.jsonl",
         help="Path where alerts are written as JSONL",
     )
+    parser.add_argument(
+        "--rules",
+        help="Path to a Suricata-style .rules file to load alongside the built-in behavior rules",
+    )
     return parser
+
+
+def load_suricata_rules(path: str) -> tuple[str, ...]:
+    """Read a .rules file and return non-empty, non-comment lines as a tuple."""
+    rules_path = Path(path)
+    if not rules_path.exists():
+        print(f"Rules file not found: {rules_path}")
+        raise SystemExit(2)
+    lines = rules_path.read_text(encoding="utf-8").splitlines()
+    return tuple(
+        line.strip()
+        for line in lines
+        if line.strip() and not line.strip().startswith("#")
+    )
 
 
 def print_alerts(alerts: list) -> None:
@@ -32,7 +51,14 @@ def print_alerts(alerts: list) -> None:
 
 def main() -> int:
     args = build_parser().parse_args()
-    engine = NIDSEngine(store=AlertStore(args.alerts))
+
+    suricata_rules: tuple[str, ...] = ()
+    if args.rules:
+        suricata_rules = load_suricata_rules(args.rules)
+        print(f"Loaded {len(suricata_rules)} Suricata rule(s) from {args.rules}")
+
+    config = RuleConfig(suricata_rules=suricata_rules)
+    engine = NIDSEngine(rules=SlidingWindowRules(config), store=AlertStore(args.alerts))
 
     if args.pcap:
         pcap_path = Path(args.pcap)

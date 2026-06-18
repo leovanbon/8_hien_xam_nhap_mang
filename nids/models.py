@@ -19,6 +19,7 @@ class PacketEvent:
     protocol: str
     length: int
     tcp_flags: str | None = None
+    icmp_type: int | None = None
     dns_query: str | None = None
     payload_text: str | None = None
     http_method: str | None = None

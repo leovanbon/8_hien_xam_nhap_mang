@@ -89,8 +89,25 @@ class SlidingWindowRules:
         for key in expired:
             del self._recent_alert_keys[key]
 
+    # TCP flag combinations used as port scan probes.
+    # SYN  (S)   — standard connect/stealth scan (nmap -sS / -sT)
+    # FIN  (F)   — FIN scan, evades simple SYN-only filters (nmap -sF)
+    # NULL ()    — no flags set, bypasses stateless firewalls (nmap -sN)
+    # XMAS (FPU) — FIN+PSH+URG "Christmas tree" scan (nmap -sX)
+    # ACK  (A)   — firewall/filter mapping scan (nmap -sA)
+    # RST, SYN-ACK, FIN-ACK are *responses*, not probes — excluded to
+    # prevent false positives on the host being scanned.
+    _SCAN_FLAGS: frozenset[str] = frozenset({"S", "F", "", "FPU", "A"})
+
     def _detect_port_scan(self, event: PacketEvent) -> Alert | None:
         if event.protocol != "TCP" or event.dst_port is None:
+            return None
+
+        # Only count recognised probe flag patterns.
+        # Response packets (RST, SYN-ACK, FIN-ACK, RST-ACK) go back to the
+        # scanner's random per-probe source ports; counting them would make
+        # the scanned host appear to be scanning back — a false positive.
+        if event.tcp_flags not in self._SCAN_FLAGS:
             return None
 
         window = self._dest_ports_by_src[event.src_ip or ""]
@@ -116,8 +133,22 @@ class SlidingWindowRules:
             evidence={"unique_ports": sorted(unique_ports), "count": len(unique_ports)},
         )
 
+    # ICMP types that can be used as flood probes (request-side).
+    # Type 8  — Echo Request      (ping flood, most common)
+    # Type 13 — Timestamp Request (timestamp flood)
+    # Type 17 — Address Mask Request (legacy, still abusable)
+    # Their corresponding reply types (0, 14, 18) are excluded: counting
+    # replies would make the victim appear to be flooding the attacker.
+    _ICMP_FLOOD_TYPES: frozenset[int] = frozenset({8, 13, 17})
+
     def _detect_icmp_flood(self, event: PacketEvent) -> Alert | None:
         if event.protocol != "ICMP":
+            return None
+
+        # Only count request-side ICMP types that are used as flood vectors.
+        # Reply types (0, 14, 18) go back to the attacker at the same rate
+        # and must be excluded to avoid a false positive on the victim.
+        if event.icmp_type not in self._ICMP_FLOOD_TYPES:
             return None
 
         window = self._icmp_by_src[event.src_ip or ""]
