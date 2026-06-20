@@ -7,13 +7,13 @@
 \contentsline {section}{\numberline {1.5}Bố cục báo cáo}{5}{section.1.5}%
 \contentsline {chapter}{\numberline {2}Cơ sở lý thuyết}{6}{chapter.2}%
 \contentsline {section}{\numberline {2.1}IDS, IPS và NIDS}{6}{section.2.1}%
-\contentsline {section}{\numberline {2.2}Phát hiện theo chữ ký}{6}{section.2.2}%
+\contentsline {section}{\numberline {2.2}Phát hiện theo chữ ký}{7}{section.2.2}%
 \contentsline {section}{\numberline {2.3}Phát hiện theo hành vi}{7}{section.2.3}%
 \contentsline {section}{\numberline {2.4}Các kiểu tấn công trong phạm vi đồ án}{7}{section.2.4}%
 \contentsline {subsection}{\numberline {2.4.1}Quét cổng}{7}{subsection.2.4.1}%
 \contentsline {subsection}{\numberline {2.4.2}ICMP Flood và SYN Flood}{7}{subsection.2.4.2}%
-\contentsline {subsection}{\numberline {2.4.3}DNS độc hại và DNS Tunneling}{7}{subsection.2.4.3}%
-\contentsline {subsection}{\numberline {2.4.4}Tấn công HTTP dựa trên chữ ký}{7}{subsection.2.4.4}%
+\contentsline {subsection}{\numberline {2.4.3}DNS độc hại và DNS Tunneling}{8}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.4}Tấn công HTTP dựa trên chữ ký}{8}{subsection.2.4.4}%
 \contentsline {section}{\numberline {2.5}Giới hạn lý thuyết liên quan đến triển khai}{8}{section.2.5}%
 \contentsline {chapter}{\numberline {3}Kiến trúc và Triển khai Hệ thống NIDS}{9}{chapter.3}%
 \contentsline {section}{\numberline {3.1}Tổng quan kiến trúc}{9}{section.3.1}%
@@ -39,4 +39,4 @@
 \contentsline {section}{\numberline {5.2}Hạn chế}{16}{section.5.2}%
 \contentsline {section}{\numberline {5.3}Hướng phát triển}{17}{section.5.3}%
 \contentsline {section}{\numberline {5.4}Kết luận}{17}{section.5.4}%
-\contentsline {chapter}{Tài liệu tham khảo}{18}{chapter*.7}%
+\contentsline {chapter}{Tài liệu tham khảo}{18}{chapter*.8}%

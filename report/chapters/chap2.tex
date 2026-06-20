@@ -8,6 +8,38 @@ Hệ thống ngăn chặn xâm nhập (Intrusion Prevention System -- IPS) có p
 
 Theo nguồn dữ liệu giám sát, IDS có thể được chia thành hai nhóm chính:
 
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        scale=0.85, transform shape,
+        node distance=1cm and 1.5cm,
+        internet/.style={cloud, cloud puffs=11, draw=black, fill=none, aspect=1.4, minimum width=2.1cm, minimum height=1.2cm, align=center},
+        device/.style={rectangle, draw=black, fill=none, minimum width=2cm, minimum height=0.9cm, align=center, rounded corners=1pt},
+        host/.style={rectangle, draw=black, fill=none, minimum width=2.4cm, minimum height=1cm, align=center, rounded corners=1pt},
+        sensor/.style={rectangle, draw=black, fill=none, minimum width=2.3cm, minimum height=0.9cm, align=center, rounded corners=1pt},
+        arrow/.style={-Stealth, draw=black},
+        mirror/.style={-Stealth, dashed, draw=black}
+    ]
+        \node[internet] (internet) {Internet};
+        \node[device, right=of internet] (fw) {Firewall};
+        \node[device, right=of fw] (switch) {Switch};
+
+        \node[host, right=1.8cm of switch, yshift=1.2cm] (server) {Server \\ \footnotesize HIDS Agent};
+        \node[host, right=1.8cm of switch] (client1) {Client 1 \\ \footnotesize HIDS Agent};
+        \node[host, right=1.8cm of switch, yshift=-1.2cm] (client2) {Client 2 \\ \footnotesize HIDS Agent};
+        \node[sensor, below=1.4cm of switch] (nids) {NIDS Sensor \\ \footnotesize mirrored traffic};
+
+        \draw[arrow] (internet) -- (fw);
+        \draw[arrow] (fw) -- (switch);
+        \draw[arrow] (switch) -- (server);
+        \draw[arrow] (switch) -- (client1);
+        \draw[arrow] (switch) -- (client2);
+        \draw[mirror] (switch) -- (nids);
+    \end{tikzpicture}
+    \caption{Minh họa vị trí giám sát của NIDS và HIDS}
+    \label{fig:nids_hids_position}
+\end{figure}
+
 \begin{table}[H]
     \centering
     \renewcommand{\arraystretch}{1.35}
