@@ -1,0 +1,10 @@
+# Custom Signature Rules for NIDS Demo
+
+# Detect SQL Injection in HTTP URI
+alert http any any -> any 80 (msg:"HTTP URI SQL Injection Attempt"; http.uri; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000001; rev:1;)
+
+# Detect sqlmap user-agent
+alert http any any -> any 80 (msg:"sqlmap Scanner User-Agent Detected"; http.user_agent; content:"sqlmap"; nocase; classtype:attempted-recon; priority:2; sid:1000002; rev:1;)
+
+# Detect SQL Injection in POST body (using raw packet data)
+alert tcp any any -> any 80 (msg:"HTTP POST Body SQL Injection Attempt"; pkt_data; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000003; rev:1;)
