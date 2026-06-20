@@ -1,0 +1,41 @@
+\chapter{Kết luận và Hướng phát triển}
+
+\section{Kết quả đạt được}
+Đồ án đã xây dựng được một hệ thống NIDS nhỏ gọn phục vụ học tập và trình diễn. Hệ thống hoàn chỉnh các thành phần chính của một pipeline phát hiện xâm nhập mạng:
+
+\begin{itemize}
+    \item Đọc lưu lượng từ PCAP hoặc live interface bằng Scapy.
+    \item Chuẩn hóa packet thành cấu trúc \texttt{PacketEvent}.
+    \item Phát hiện hành vi bằng cửa sổ trượt thời gian.
+    \item Phân tích một tập con luật Suricata để phát hiện chữ ký trong HTTP, DNS và payload.
+    \item Ghi cảnh báo ra JSON Lines và hiển thị qua dashboard Flask.
+    \item Có kịch bản demo để kiểm tra các rule chính trong môi trường lab.
+\end{itemize}
+
+Kết quả quan trọng nhất của đồ án là làm rõ cách các thành phần IDS phối hợp với nhau: capture cung cấp dữ liệu, parser chuẩn hóa dữ liệu, rule engine tạo cảnh báo, storage lưu lại kết quả và dashboard hỗ trợ quan sát.
+
+\section{Hạn chế}
+Hệ thống hiện tại vẫn có một số hạn chế kỹ thuật:
+
+\begin{itemize}
+    \item \textbf{Chỉ phát hiện, chưa ngăn chặn:} hệ thống không chặn gói tin, không reset kết nối và không tự động cập nhật tường lửa.
+    \item \textbf{Chưa xử lý lưu lượng mã hóa:} nội dung HTTPS/TLS không thể được kiểm tra bằng chữ ký nếu không có cơ chế giải mã hợp lệ.
+    \item \textbf{Chưa tái tạo TCP stream đầy đủ:} payload bị chia nhỏ qua nhiều gói tin có thể làm giảm hiệu quả của signature matching.
+    \item \textbf{Hiệu năng còn giới hạn:} Python và Scapy phù hợp cho demo, nhưng chưa phù hợp với môi trường có lưu lượng lớn nếu không tối ưu thêm.
+    \item \textbf{Phụ thuộc vào ngưỡng và luật:} chất lượng cảnh báo phụ thuộc vào cấu hình threshold và độ đầy đủ của tập luật chữ ký.
+\end{itemize}
+
+\section{Hướng phát triển}
+Các hướng cải tiến phù hợp với kiến trúc hiện tại gồm:
+
+\begin{itemize}
+    \item Bổ sung TCP stream reassembly để kiểm tra payload ở mức phiên thay vì từng gói riêng lẻ.
+    \item Mở rộng parser HTTP/DNS và tăng mức tương thích với cú pháp Suricata.
+    \item Thêm cơ chế cấu hình rule và threshold qua tệp YAML hoặc giao diện dashboard.
+    \item Đo hiệu năng trên PCAP lớn và tối ưu luồng xử lý để giảm packet drop.
+    \item Tích hợp phản ứng bán tự động như xuất IOC, webhook hoặc cập nhật danh sách chặn cho firewall trong môi trường lab.
+    \item Xây dựng bộ kiểm thử với cả traffic bình thường và traffic tấn công để đánh giá false positive/false negative rõ ràng hơn.
+\end{itemize}
+
+\section{Kết luận}
+Hệ thống đã đáp ứng mục tiêu chính của đồ án: minh họa được một NIDS hoạt động từ khâu thu thập gói tin đến sinh cảnh báo và trực quan hóa kết quả. Dù chưa phải hệ thống production, đồ án cung cấp nền tảng thực hành tốt để hiểu các kỹ thuật phát hiện xâm nhập mạng và các giới hạn khi triển khai IDS trong thực tế.

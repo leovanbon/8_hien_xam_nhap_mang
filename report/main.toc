@@ -1,0 +1,42 @@
+\contentsline {chapter}{Lời nói đầu}{3}{chapter*.2}%
+\contentsline {chapter}{\numberline {1}Giới thiệu đề tài}{4}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Bối cảnh và lý do chọn đề tài}{4}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Mục tiêu đề tài}{4}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Đối tượng và phạm vi nghiên cứu}{4}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Phương pháp thực hiện}{5}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Bố cục báo cáo}{5}{section.1.5}%
+\contentsline {chapter}{\numberline {2}Cơ sở lý thuyết}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}IDS, IPS và NIDS}{6}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Phát hiện theo chữ ký}{6}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Phát hiện theo hành vi}{7}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Các kiểu tấn công trong phạm vi đồ án}{7}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Quét cổng}{7}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}ICMP Flood và SYN Flood}{7}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.3}DNS độc hại và DNS Tunneling}{7}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.4}Tấn công HTTP dựa trên chữ ký}{7}{subsection.2.4.4}%
+\contentsline {section}{\numberline {2.5}Giới hạn lý thuyết liên quan đến triển khai}{8}{section.2.5}%
+\contentsline {chapter}{\numberline {3}Kiến trúc và Triển khai Hệ thống NIDS}{9}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Tổng quan kiến trúc}{9}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Thu thập và chuẩn hóa gói tin}{9}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Capture}{9}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}PacketEvent}{10}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}Detection Engine}{10}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Luật phát hiện hành vi}{11}{section.3.4}%
+\contentsline {section}{\numberline {3.5}Luật chữ ký kiểu Suricata}{11}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Lưu trữ và dashboard}{11}{section.3.6}%
+\contentsline {chapter}{\numberline {4}Kịch bản Thử nghiệm và Đánh giá}{13}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Môi trường thử nghiệm}{13}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Khởi động hệ thống}{13}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Các kịch bản kiểm thử}{14}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Quét cổng bằng nmap}{14}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}ICMP Ping Flood}{14}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}TCP SYN Flood}{14}{subsection.4.3.3}%
+\contentsline {subsection}{\numberline {4.3.4}DNS đáng ngờ và DNS tunneling}{14}{subsection.4.3.4}%
+\contentsline {subsection}{\numberline {4.3.5}HTTP signature rules}{14}{subsection.4.3.5}%
+\contentsline {section}{\numberline {4.4}Đánh giá kết quả}{15}{section.4.4}%
+\contentsline {chapter}{\numberline {5}Kết luận và Hướng phát triển}{16}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Kết quả đạt được}{16}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Hạn chế}{16}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Hướng phát triển}{17}{section.5.3}%
+\contentsline {section}{\numberline {5.4}Kết luận}{17}{section.5.4}%
+\contentsline {chapter}{Tài liệu tham khảo}{18}{chapter*.7}%

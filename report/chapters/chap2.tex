@@ -1,0 +1,79 @@
+\clearpage
+\chapter{Cơ sở lý thuyết}
+
+\section{IDS, IPS và NIDS}
+Hệ thống phát hiện xâm nhập (Intrusion Detection System -- IDS) có nhiệm vụ thu thập và phân tích sự kiện bảo mật để phát hiện hành vi bất thường hoặc dấu hiệu tấn công. IDS thường hoạt động ở chế độ thụ động: hệ thống quan sát lưu lượng, ghi log và sinh cảnh báo, nhưng không trực tiếp can thiệp vào luồng dữ liệu.
+
+Hệ thống ngăn chặn xâm nhập (Intrusion Prevention System -- IPS) có phạm vi rộng hơn IDS vì được đặt inline trên đường truyền và có khả năng chặn gói tin, reset kết nối hoặc cập nhật luật tường lửa. Đồ án này chỉ triển khai hướng IDS, tức là tập trung vào phát hiện và cảnh báo.
+
+Theo nguồn dữ liệu giám sát, IDS có thể được chia thành hai nhóm chính:
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{5.5cm}|>{\raggedright\arraybackslash}p{6cm}|}
+        \hline
+        \textbf{Loại hệ thống} & \textbf{Nguồn dữ liệu} & \textbf{Đặc điểm} \\ \hline
+        \textbf{NIDS} & Lưu lượng mạng tại switch, gateway hoặc interface giám sát. & Quan sát được nhiều máy trong cùng phân đoạn mạng, phù hợp phát hiện scan, flood và payload độc hại trong lưu lượng không mã hóa. \\ \hline
+        \textbf{HIDS} & Log, tiến trình, file và hành vi trên từng máy chủ hoặc endpoint. & Nhìn sâu vào trạng thái máy trạm nhưng cần cài agent trên từng host. \\ \hline
+    \end{tabular}
+    \caption{Phân loại IDS theo nguồn dữ liệu giám sát}
+\end{table}
+
+Hệ thống trong đồ án là một NIDS dạng thụ động: đọc PCAP hoặc sniff interface, phân tích gói tin và ghi cảnh báo ra tệp JSONL.
+
+\section{Phát hiện theo chữ ký}
+Phát hiện theo chữ ký (Signature-based Detection) so khớp lưu lượng với các mẫu đã biết. Mẫu có thể là chuỗi trong payload, biểu thức chính quy, trường HTTP, truy vấn DNS hoặc tổ hợp điều kiện trong header gói tin. Cách tiếp cận này phù hợp để nhận diện các kỹ thuật tấn công đã biết như SQL Injection, công cụ quét tự động hoặc payload có cấu trúc đặc trưng.
+
+Một luật Suricata thường gồm hai phần:
+
+\begin{verbatim}
+alert http any any -> any 80 (msg:"sqlmap User-Agent";
+http.user_agent; content:"sqlmap"; nocase; sid:1000002; rev:1;)
+\end{verbatim}
+
+\begin{itemize}
+    \item \textbf{Header luật:} xác định hành động, giao thức, địa chỉ IP, cổng và hướng lưu lượng.
+    \item \textbf{Options:} mô tả điều kiện cần so khớp như \texttt{content}, \texttt{pcre}, \texttt{http.uri}, \texttt{http.user\_agent}, \texttt{sid}, \texttt{priority}.
+\end{itemize}
+
+Ưu điểm của phát hiện theo chữ ký là cảnh báo rõ ràng và dễ kiểm chứng. Hạn chế là hệ thống chỉ phát hiện tốt các mẫu đã được mô tả trước; nếu payload bị mã hóa, bị làm rối hoặc chưa có rule phù hợp thì khả năng bỏ sót sẽ tăng.
+
+\section{Phát hiện theo hành vi}
+Phát hiện theo hành vi (Behavior-based Detection) quan sát chuỗi sự kiện theo thời gian thay vì chỉ xét một gói tin riêng lẻ. Trong đồ án này, cơ chế hành vi được triển khai bằng cửa sổ trượt thời gian. Hệ thống lưu các sự kiện gần nhất theo từng địa chỉ nguồn, loại bỏ các sự kiện đã quá hạn và kích hoạt cảnh báo khi số lượng hoặc đặc điểm sự kiện vượt ngưỡng.
+
+Các ví dụ được triển khai:
+
+\begin{itemize}
+    \item Một IP truy cập nhiều cổng TCP khác nhau trong thời gian ngắn có thể là quét cổng.
+    \item Một IP gửi quá nhiều ICMP Echo Request có thể là ping flood.
+    \item Một IP gửi quá nhiều gói TCP SYN có thể là SYN flood.
+    \item Các truy vấn DNS có nhãn quá dài hoặc entropy cao có thể là dấu hiệu DNS tunneling.
+\end{itemize}
+
+Cách tiếp cận này không cần biết trước chính xác payload tấn công, nhưng phụ thuộc nhiều vào ngưỡng cấu hình. Ngưỡng quá thấp dễ tạo cảnh báo sai; ngưỡng quá cao có thể bỏ sót các cuộc tấn công chậm.
+
+\section{Các kiểu tấn công trong phạm vi đồ án}
+Báo cáo tập trung vào các tình huống có thể kiểm thử trực tiếp bằng hệ thống đã xây dựng.
+
+\subsection{Quét cổng}
+Quét cổng là bước thăm dò nhằm xác định dịch vụ đang mở trên máy mục tiêu. Dấu hiệu chính trong hệ thống là một địa chỉ nguồn gửi gói TCP tới nhiều cổng đích khác nhau trong cùng một cửa sổ thời gian.
+
+\subsection{ICMP Flood và SYN Flood}
+ICMP Flood tạo lượng lớn gói Echo Request để tiêu tốn băng thông hoặc tài nguyên xử lý. SYN Flood tạo nhiều yêu cầu TCP SYN chưa hoàn tất kết nối. Cả hai đều được phát hiện bằng bộ đếm theo nguồn trong cửa sổ thời gian.
+
+\subsection{DNS độc hại và DNS Tunneling}
+DNS có thể bị lợi dụng để truy vấn tên miền độc hại hoặc truyền dữ liệu ra ngoài thông qua các nhãn dài, khó đọc, entropy cao. Hệ thống kiểm tra tên miền đáng ngờ và thống kê số lượng truy vấn có đặc điểm bất thường.
+
+\subsection{Tấn công HTTP dựa trên chữ ký}
+Một số payload tấn công web có thể được nhận diện bằng nội dung trong URI, User-Agent hoặc body HTTP. Demo sử dụng luật tùy chỉnh để phát hiện chuỗi SQL Injection cơ bản và User-Agent của \texttt{sqlmap}.
+
+\section{Giới hạn lý thuyết liên quan đến triển khai}
+Các cơ chế trên có một số giới hạn cần được hiểu đúng khi đánh giá kết quả:
+
+\begin{itemize}
+    \item NIDS không nhìn thấy nội dung ứng dụng nếu lưu lượng được mã hóa bằng TLS mà không có cơ chế giải mã hợp lệ.
+    \item Nếu không tái tạo TCP stream, chữ ký có thể bỏ sót payload bị chia nhỏ qua nhiều gói tin.
+    \item Cảnh báo hành vi phụ thuộc vào ngưỡng và môi trường mạng cụ thể.
+    \item Hệ thống demo dùng Python và Scapy phù hợp cho học tập, nhưng không đại diện cho hiệu năng của IDS triển khai trong mạng doanh nghiệp.
+\end{itemize}

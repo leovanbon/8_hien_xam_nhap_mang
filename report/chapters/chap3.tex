@@ -1,0 +1,144 @@
+\chapter{Kiến trúc và Triển khai Hệ thống NIDS}
+
+\section{Tổng quan kiến trúc}
+Hệ thống NIDS được xây dựng bằng Python 3 và tổ chức theo mô hình pipeline. Mỗi gói tin sau khi được đọc từ PCAP hoặc interface mạng sẽ đi qua các bước: thu thập, chuẩn hóa, phát hiện, lưu trữ và hiển thị.
+
+\begin{enumerate}
+    \item \textbf{Capture:} đọc gói tin bằng Scapy từ tệp PCAP hoặc giao diện mạng.
+    \item \textbf{Parser:} chuyển gói tin Scapy thành đối tượng \texttt{PacketEvent}.
+    \item \textbf{Detection Engine:} chạy luật hành vi và luật chữ ký.
+    \item \textbf{Storage:} ghi cảnh báo ra tệp JSONL.
+    \item \textbf{Dashboard:} đọc dữ liệu cảnh báo và hiển thị thống kê bằng Flask.
+\end{enumerate}
+
+\begin{figure}[h!]
+    \centering
+    \begin{tikzpicture}[
+        scale=0.8, transform shape,
+        node distance=1cm and 1cm,
+        box/.style={rectangle, draw=black, fill=none, minimum width=2.4cm, minimum height=1cm, align=center, rounded corners=1pt},
+        arrow/.style={-Stealth, draw=black}
+    ]
+        \node[box] (capture) {Capture \\ \footnotesize Scapy};
+        \node[box, right=of capture] (parser) {Parser \\ \footnotesize PacketEvent};
+        \node[box, right=of parser] (engine) {Detection \\ \footnotesize Behavior + Signature};
+        \node[box, below=of engine] (storage) {Storage \\ \footnotesize JSONL};
+        \node[box, left=of storage] (dashboard) {Dashboard \\ \footnotesize Flask};
+
+        \draw[arrow] (capture) -- (parser);
+        \draw[arrow] (parser) -- (engine);
+        \draw[arrow] (engine) -- (storage);
+        \draw[arrow] (storage) -- (dashboard);
+    \end{tikzpicture}
+    \caption{Luồng dữ liệu của hệ thống NIDS}
+    \label{fig:nids_architecture}
+\end{figure}
+
+\section{Thu thập và chuẩn hóa gói tin}
+\subsection{Capture}
+Module \texttt{nids/capture.py} cung cấp hai cách lấy dữ liệu: đọc từ tệp PCAP và sniff trực tiếp trên interface. Với live capture, Scapy gọi callback cho từng gói tin; nếu parser chuyển đổi thành công thì sự kiện sẽ được đưa vào detection engine.
+
+\begin{lstlisting}[language=Python, caption={Live capture bằng Scapy}]
+def sniff_live(interface: str, callback: PacketCallback, limit: int = 0) -> None:
+    from scapy.all import sniff
+
+    def handle_packet(packet: object) -> None:
+        event = packet_to_event(packet)
+        if event is not None:
+            callback(event)
+
+    sniff(iface=interface, prn=handle_packet, store=False, count=limit)
+\end{lstlisting}
+
+\subsection{PacketEvent}
+Raw packet chứa nhiều trường phụ thuộc giao thức nên khó xử lý trực tiếp trong rule engine. Vì vậy, module \texttt{nids/parser.py} chuẩn hóa các trường cần thiết thành \texttt{PacketEvent}: thời gian, IP nguồn/đích, cổng nguồn/đích, giao thức, TCP flags, ICMP type, DNS query, payload text và các trường HTTP phổ biến.
+
+\begin{lstlisting}[language=Python, caption={Cấu trúc PacketEvent}]
+@dataclass(frozen=True)
+class PacketEvent:
+    timestamp: float
+    src_ip: str | None
+    dst_ip: str | None
+    src_port: int | None
+    dst_port: int | None
+    protocol: str
+    length: int
+    tcp_flags: str | None = None
+    icmp_type: int | None = None
+    dns_query: str | None = None
+    payload_text: str | None = None
+    http_method: str | None = None
+    http_uri: str | None = None
+    http_host: str | None = None
+    http_user_agent: str | None = None
+\end{lstlisting}
+
+Payload được giới hạn kích thước khi chuyển thành chuỗi để tránh tốn bộ nhớ và giảm chi phí so khớp. Đây là lựa chọn phù hợp cho demo, nhưng cũng là một giới hạn khi phân tích payload lớn hoặc payload bị chia nhỏ.
+
+\section{Detection Engine}
+Module \texttt{nids/engine.py} đóng vai trò điều phối. Mỗi \texttt{PacketEvent} được đếm vào thống kê giao thức, sau đó gửi đến \texttt{SlidingWindowRules}. Các cảnh báo sinh ra được ghi xuống \texttt{AlertStore}.
+
+\begin{lstlisting}[language=Python, caption={Luồng xử lý một sự kiện}]
+def process_event(self, event: PacketEvent) -> list[Alert]:
+    self.packet_count += 1
+    self.protocol_counts[event.protocol] += 1
+
+    alerts = self.rules.evaluate(event)
+    self.store.append_many(alerts)
+    self.alert_count += len(alerts)
+    return alerts
+\end{lstlisting}
+
+\section{Luật phát hiện hành vi}
+Các luật hành vi được triển khai bằng cửa sổ trượt theo thời gian. Hệ thống lưu các sự kiện gần nhất theo IP nguồn và loại bỏ dữ liệu đã nằm ngoài khung thời gian cấu hình.
+
+\begin{lstlisting}[language=Python, caption={Loại bỏ sự kiện cũ trong cửa sổ thời gian}]
+@staticmethod
+def _drop_old_times(window: deque[float], now: float, seconds: int) -> None:
+    while window and now - window[0] > seconds:
+        window.popleft()
+\end{lstlisting}
+
+Các luật tích hợp gồm:
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.35}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}p{4cm}|>{\raggedright\arraybackslash}p{8cm}|}
+        \hline
+        \textbf{Rule ID} & \textbf{Tên luật} & \textbf{Điều kiện chính} \\ \hline
+        RULE-001 & Port Scan & Một nguồn truy cập 20 cổng TCP đích khác nhau trong 10 giây. \\ \hline
+        RULE-002 & ICMP Ping Flood & Một nguồn gửi 100 ICMP Echo Request trong 10 giây. \\ \hline
+        RULE-003 & TCP SYN Flood & Một nguồn gửi 100 gói TCP SYN trong 10 giây. \\ \hline
+        RULE-004 & Suspicious DNS & Truy vấn khớp tên miền đáng ngờ đã cấu hình. \\ \hline
+        RULE-005 & DNS Tunneling & Nhiều truy vấn DNS có nhãn dài hoặc entropy cao trong 30 giây. \\ \hline
+    \end{tabular}
+    \caption{Các luật hành vi tích hợp}
+\end{table}
+
+\section{Luật chữ ký kiểu Suricata}
+Ngoài luật hành vi, hệ thống hỗ trợ một tập con cú pháp Suricata. Người dùng có thể truyền tệp luật qua tham số \texttt{--rules}. Trong demo, tệp \texttt{custom.rules} chứa ba luật HTTP:
+
+\begin{lstlisting}[language=bash, breaklines=true, caption={Luật chữ ký dùng trong demo}]
+alert http any any -> any 80 (msg:"HTTP URI SQL Injection Attempt"; http.uri; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000001; rev:1;)
+
+alert http any any -> any 80 (msg:"sqlmap Scanner User-Agent Detected"; http.user_agent; content:"sqlmap"; nocase; classtype:attempted-recon; priority:2; sid:1000002; rev:1;)
+
+alert tcp any any -> any 80 (msg:"HTTP POST Body SQL Injection Attempt"; pkt_data; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000003; rev:1;)
+\end{lstlisting}
+
+Mục tiêu của phần này là minh họa cách một signature engine hoạt động: phân tích header luật, chọn buffer cần kiểm tra, sau đó so khớp nội dung hoặc biểu thức chính quy.
+
+\section{Lưu trữ và dashboard}
+Cảnh báo được biểu diễn bằng \texttt{Alert} và ghi dưới dạng JSON Lines. Mỗi dòng là một cảnh báo độc lập nên hệ thống có thể append liên tục mà không cần đọc lại toàn bộ tệp.
+
+Dashboard trong \texttt{dashboard/app.py} đọc tệp cảnh báo, cache theo thời gian sửa đổi của file và hiển thị:
+
+\begin{itemize}
+    \item tổng số cảnh báo,
+    \item số cảnh báo theo mức độ nghiêm trọng,
+    \item các IP nguồn xuất hiện nhiều nhất,
+    \item danh sách cảnh báo gần nhất.
+\end{itemize}
+
+Dashboard phục vụ quan sát và trình diễn kết quả; phần phản ứng tự động như chặn IP hoặc cập nhật tường lửa chưa nằm trong phạm vi đồ án.

@@ -1,0 +1,112 @@
+\chapter{Kịch bản Thử nghiệm và Đánh giá}
+
+\section{Môi trường thử nghiệm}
+Việc kiểm thử được thực hiện trong môi trường lab ảo hóa để tránh ảnh hưởng đến mạng thật. Mô hình gồm ba thành phần:
+
+\begin{itemize}
+    \item \textbf{Host Machine:} chạy NIDS engine và Flask dashboard.
+    \item \textbf{Kali Linux VM:} đóng vai trò máy tạo lưu lượng kiểm thử bằng \texttt{nmap}, \texttt{hping3}, \texttt{dig} và \texttt{curl}.
+    \item \textbf{Target VM:} nhận lưu lượng scan, flood, DNS và HTTP. Target cần có dịch vụ HTTP ở cổng 80 để kiểm thử luật chữ ký web.
+\end{itemize}
+
+\begin{figure}[h!]
+    \centering
+    \begin{tikzpicture}[
+        scale=0.8, transform shape,
+        node distance=1.5cm and 3.5cm,
+        machine/.style={rectangle, draw=black, fill=none, minimum width=2.7cm, minimum height=1.2cm, align=center, rounded corners=1pt},
+        nids/.style={rectangle, draw=black, fill=none, minimum width=3.4cm, minimum height=1.2cm, align=center, rounded corners=1pt},
+        arrow/.style={-Stealth, dashed, draw=black}
+    ]
+        \node[machine] (kali) {Kali Linux \\ \footnotesize Attacker};
+        \node[machine, right=of kali] (target) {Target VM \\ \footnotesize HTTP service};
+        \node[nids, below=1cm of $(kali)!0.5!(target)$] (host) {Host Machine \\ \footnotesize NIDS + Dashboard};
+
+        \draw[<->, draw=black] (kali) -- node[above, font=\footnotesize] {Test traffic} (target);
+        \draw[arrow] ($(kali)!0.5!(target)$) -- node[right, near end, font=\footnotesize] {Sniffing} (host);
+    \end{tikzpicture}
+    \caption{Mô hình lab kiểm thử}
+    \label{fig:test_environment}
+\end{figure}
+
+\section{Khởi động hệ thống}
+Trên host, dashboard được chạy ở một terminal:
+
+\begin{lstlisting}[language=bash, caption={Khởi động dashboard}]
+python3 dashboard/app.py
+\end{lstlisting}
+
+NIDS engine được chạy ở terminal khác. Interface cần thay bằng interface thực tế kết nối các máy ảo:
+
+\begin{lstlisting}[language=bash, caption={Khởi động NIDS engine}]
+sudo .venv/bin/python main.py --iface <YOUR_INTERFACE> --rules custom.rules --limit 0
+\end{lstlisting}
+
+Khi dùng PCAP thay cho live capture, có thể chạy:
+
+\begin{lstlisting}[language=bash, caption={Phân tích PCAP}]
+python3 main.py --pcap sample.pcap --rules custom.rules
+\end{lstlisting}
+
+\section{Các kịch bản kiểm thử}
+\subsection{Quét cổng bằng nmap}
+Kịch bản sử dụng \texttt{nmap} để gửi SYN tới nhiều cổng đích trong thời gian ngắn:
+
+\begin{lstlisting}[language=bash]
+nmap -sS -p 21,22,23,25,53,80,110,135,139,143,443,445,\
+993,995,1433,1723,3306,3389,5900,8080,8443,8888,9090,\
+9200,9300 --min-rate 300 -T4 -n --open <TARGET_IP>
+\end{lstlisting}
+
+Kết quả mong đợi là cảnh báo \textbf{RULE-001 Port Scan}, vì cùng một IP nguồn truy cập nhiều cổng TCP đích trong cửa sổ 10 giây.
+
+\subsection{ICMP Ping Flood}
+Kịch bản gửi nhiều gói ICMP Echo Request:
+
+\begin{lstlisting}[language=bash]
+hping3 --icmp -c 120 -i u5000 <TARGET_IP>
+\end{lstlisting}
+
+Kết quả mong đợi là cảnh báo \textbf{RULE-002 ICMP Ping Flood} khi bộ đếm ICMP từ cùng nguồn vượt ngưỡng.
+
+\subsection{TCP SYN Flood}
+Kịch bản gửi nhiều gói SYN tới cổng 80:
+
+\begin{lstlisting}[language=bash]
+hping3 -S -p 80 -c 120 -i u5000 <TARGET_IP>
+\end{lstlisting}
+
+Kết quả mong đợi là cảnh báo \textbf{RULE-003 TCP SYN Flood}. Trong phạm vi đồ án, hệ thống chỉ cảnh báo dựa trên số lượng gói SYN, chưa kiểm tra trạng thái hoàn tất kết nối ở mức TCP stream đầy đủ.
+
+\subsection{DNS đáng ngờ và DNS tunneling}
+Kịch bản DNS gồm hai nhóm: truy vấn tên miền nằm trong danh sách đáng ngờ và truy vấn có nhãn dài/entropy cao.
+
+\begin{lstlisting}[language=bash]
+dig malware.test
+dig aGVsbG93b3JsZGhlbGxvd2...tunnel.example.com
+\end{lstlisting}
+
+Kết quả mong đợi là \textbf{RULE-004 Suspicious DNS Query} với tên miền đáng ngờ và \textbf{RULE-005 DNS Tunneling Suspicion} khi có đủ số truy vấn bất thường trong cửa sổ thời gian.
+
+\subsection{HTTP signature rules}
+Các request HTTP được dùng để kiểm tra luật chữ ký:
+
+\begin{lstlisting}[language=bash]
+curl -s "http://<TARGET_IP>/index.php?id=%27%20OR%20%271%27%3D%271"
+curl -A "sqlmap/1.7.8#stable" "http://<TARGET_IP>/"
+curl -s -X POST "http://<TARGET_IP>/login" \
+  --data "username=admin&password=%27+OR+%271%27%3D%271"
+\end{lstlisting}
+
+Kết quả mong đợi là các cảnh báo từ luật \texttt{custom.rules}: SQL Injection trong URI, User-Agent chứa \texttt{sqlmap}, và SQL Injection trong body POST.
+
+\section{Đánh giá kết quả}
+Trong môi trường lab, các kịch bản trên kiểm tra được cả hai lớp phát hiện:
+
+\begin{itemize}
+    \item Luật hành vi phát hiện các mẫu dựa trên tần suất và số lượng sự kiện trong thời gian ngắn.
+    \item Luật chữ ký phát hiện các chuỗi đặc trưng trong HTTP và payload thô.
+    \item Dashboard hiển thị được số lượng cảnh báo, mức độ nghiêm trọng, IP nguồn và danh sách cảnh báo gần nhất.
+\end{itemize}
+
+Kết quả này xác nhận hệ thống đáp ứng mục tiêu học tập và trình diễn. Tuy nhiên, đánh giá này chỉ có giá trị trong phạm vi lab có kiểm soát. Để kết luận về độ chính xác trong mạng thực tế cần có bộ dữ liệu lớn hơn, lưu lượng nền đa dạng hơn, kiểm thử false positive/false negative và đo hiệu năng xử lý gói tin.
