@@ -1,7 +1,7 @@
 \chapter{Kịch bản Thử nghiệm và Đánh giá}
 
 \section{Môi trường thử nghiệm}
-Việc kiểm thử được thực hiện trong môi trường lab ảo hóa để tránh ảnh hưởng đến mạng thật. Mô hình gồm ba thành phần:
+Việc kiểm thử được thực hiện trong môi trường lab ảo hóa cô lập để tránh ảnh hưởng đến mạng thật. Các lệnh tạo traffic chỉ dùng trong lab/VM có kiểm soát và không chạy trên mạng thật nếu không có quyền. Mô hình gồm ba thành phần:
 
 \begin{itemize}
     \item \textbf{Host Machine:} chạy NIDS engine và Flask dashboard.
@@ -23,11 +23,13 @@ Việc kiểm thử được thực hiện trong môi trường lab ảo hóa đ
         \node[nids, below=1cm of $(kali)!0.5!(target)$] (host) {Host Machine \\ \footnotesize NIDS + Dashboard};
 
         \draw[<->, draw=black] (kali) -- node[above, font=\footnotesize] {Test traffic} (target);
-        \draw[arrow] ($(kali)!0.5!(target)$) -- node[right, near end, font=\footnotesize] {Sniffing} (host);
+        \draw[arrow] ($(kali)!0.5!(target)$) -- node[right, near end, font=\footnotesize] {Mirror/bridge sniffing} (host);
     \end{tikzpicture}
     \caption{Mô hình lab kiểm thử}
     \label{fig:test_environment}
 \end{figure}
+
+Trong mô hình này, NIDS sniff traffic trên interface mirror/bridge của lab. Nếu dùng SPAN/TAP hoặc bridge trong môi trường thật, cần lưu ý khả năng mất packet hoặc asymmetric routing làm giảm độ đầy đủ của dữ liệu quan sát.
 
 \section{Khởi động hệ thống}
 Trên host, dashboard được chạy ở một terminal:
@@ -67,7 +69,7 @@ Kịch bản gửi nhiều gói ICMP Echo Request:
 hping3 --icmp -c 120 -i u5000 <TARGET_IP>
 \end{lstlisting}
 
-Kết quả mong đợi là cảnh báo \textbf{RULE-002 ICMP Ping Flood} khi bộ đếm ICMP từ cùng nguồn vượt ngưỡng.
+Tùy chọn \texttt{-i u5000} tạo khoảng cách 5000 micro giây giữa các gói, đủ cao để vượt ngưỡng demo $\geq$ 100 packets/10 giây trong lab. Kết quả mong đợi là cảnh báo \textbf{RULE-002 ICMP Ping Flood} khi bộ đếm ICMP request từ cùng nguồn vượt ngưỡng.
 
 \subsection{TCP SYN Flood}
 Kịch bản gửi nhiều gói SYN tới cổng 80:
@@ -76,17 +78,21 @@ Kịch bản gửi nhiều gói SYN tới cổng 80:
 hping3 -S -p 80 -c 120 -i u5000 <TARGET_IP>
 \end{lstlisting}
 
-Kết quả mong đợi là cảnh báo \textbf{RULE-003 TCP SYN Flood}. Trong phạm vi đồ án, hệ thống chỉ cảnh báo dựa trên số lượng gói SYN, chưa kiểm tra trạng thái hoàn tất kết nối ở mức TCP stream đầy đủ.
+Tùy chọn \texttt{-S} tạo TCP SYN without ACK, còn \texttt{-i u5000} bảo đảm tốc độ đủ cao cho threshold demo. Kết quả mong đợi là cảnh báo \textbf{RULE-003 TCP SYN Flood}. Trong phạm vi đồ án, hệ thống chỉ cảnh báo dựa trên số lượng gói SYN without ACK từ cùng nguồn, chưa kiểm tra trạng thái hoàn tất kết nối ở mức TCP stream đầy đủ.
 
 \subsection{DNS đáng ngờ và DNS tunneling}
 Kịch bản DNS gồm hai nhóm: truy vấn tên miền nằm trong danh sách đáng ngờ và truy vấn có nhãn dài/entropy cao.
 
 \begin{lstlisting}[language=bash]
-dig malware.test
+dig chatgpt.com
+dig gemini.google.com
+dig claude.ai
 dig aGVsbG93b3JsZGhlbGxvd2...tunnel.example.com
 \end{lstlisting}
 
-Kết quả mong đợi là \textbf{RULE-004 Suspicious DNS Query} với tên miền đáng ngờ và \textbf{RULE-005 DNS Tunneling Suspicion} khi có đủ số truy vấn bất thường trong cửa sổ thời gian.
+Kết quả mong đợi là \textbf{RULE-004 Suspicious DNS Query} từ luật chữ ký DNS mặc định khi tên miền khớp blacklist và \textbf{RULE-005 DNS Tunneling Suspicion} khi có đủ số truy vấn bất thường trong cửa sổ thời gian.
+
+Rule DNS tunneling có thể false positive với một số domain hợp lệ như CDN, tracking, DKIM, ACME challenge hoặc service discovery. Trong thực tế nên kết hợp thêm whitelist, NXDOMAIN rate, số lượng unique subdomain, qtype và reputation của base domain.
 
 \subsection{HTTP signature rules}
 Các request HTTP được dùng để kiểm tra luật chữ ký:
@@ -98,15 +104,34 @@ curl -s -X POST "http://<TARGET_IP>/login" \
   --data "username=admin&password=%27+OR+%271%27%3D%271"
 \end{lstlisting}
 
-Kết quả mong đợi là các cảnh báo từ luật \texttt{custom.rules}: SQL Injection trong URI, User-Agent chứa \texttt{sqlmap}, và SQL Injection trong body POST.
+Kết quả mong đợi là các cảnh báo signature-based từ luật \texttt{custom.rules}: SQL Injection trong URI, User-Agent chứa \texttt{sqlmap}, và SQL Injection trong body POST. Các luật này thuộc \textit{Suricata-style subset}, không đại diện cho mức tương thích đầy đủ với Suricata/Snort.
 
 \section{Đánh giá kết quả}
-Trong môi trường lab, các kịch bản trên kiểm tra được cả hai lớp phát hiện:
+Trong môi trường lab, các kịch bản trên kiểm tra được các nhóm phát hiện chính:
 
 \begin{itemize}
     \item Luật hành vi phát hiện các mẫu dựa trên tần suất và số lượng sự kiện trong thời gian ngắn.
-    \item Luật chữ ký phát hiện các chuỗi đặc trưng trong HTTP và payload thô.
+    \item Luật signature phát hiện domain blacklist và các chuỗi đặc trưng trong HTTP hoặc payload thô.
     \item Dashboard hiển thị được số lượng cảnh báo, mức độ nghiêm trọng, IP nguồn và danh sách cảnh báo gần nhất.
 \end{itemize}
+
+Do chưa có log chạy lab cuối cùng trong báo cáo này, bảng dưới đây để lại cột số liệu thực nghiệm cần điền sau khi chạy lại script demo. Không nên tự điền số liệu nếu chưa có file alert tương ứng.
+
+\begin{table}[H]
+    \centering
+    \scriptsize
+    \renewcommand{\arraystretch}{1.25}
+    \begin{tabular}{|>{\raggedright\arraybackslash}p{2.3cm}|>{\raggedright\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}p{2.1cm}|>{\raggedright\arraybackslash}p{3.2cm}|>{\raggedright\arraybackslash}p{3.4cm}|}
+        \hline
+        \textbf{Scenario} & \textbf{Expected alert} & \textbf{Observed alert} & \textbf{Evidence chính} & \textbf{Ghi chú} \\ \hline
+        Port scan & RULE-001 & TODO: điền số thực tế & unique ports, count & Trigger khi $\geq$ 20 ports/10 giây. \\ \hline
+        ICMP flood & RULE-002 & TODO: điền số thực tế & icmp count & Trigger khi $\geq$ 100 requests/10 giây. \\ \hline
+        SYN flood & RULE-003 & TODO: điền số thực tế & syn count & SYN without ACK. \\ \hline
+        Suspicious DNS & RULE-004 & TODO: điền số thực tế & DNS signature match & domain blacklist. \\ \hline
+        DNS tunneling & RULE-005 & TODO: điền số thực tế & query, reason counts, count & $\geq$ 5 suspicious queries/30 giây. \\ \hline
+        HTTP signature & \texttt{custom.rules} & TODO: điền số thực tế & matched content/User-Agent & Suricata-style subset. \\ \hline
+    \end{tabular}
+    \caption{Bảng kết quả thực nghiệm cần hoàn thiện sau khi chạy lab}
+\end{table}
 
 Kết quả này xác nhận hệ thống đáp ứng mục tiêu học tập và trình diễn. Tuy nhiên, đánh giá này chỉ có giá trị trong phạm vi lab có kiểm soát. Để kết luận về độ chính xác trong mạng thực tế cần có bộ dữ liệu lớn hơn, lưu lượng nền đa dạng hơn, kiểm thử false positive/false negative và đo hiệu năng xử lý gói tin.

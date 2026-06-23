@@ -68,29 +68,31 @@ parsing, and detection separate.
 1. Port scan detector.
 2. ICMP flood detector.
 3. SYN flood detector.
-4. Suspicious DNS domain detector.
-5. DNS tunneling suspicion detector.
-6. Suricata-style signature engine.
+4. DNS tunneling suspicion detector.
+5. Suricata-style subset signature engine.
 
-The behavior detectors use sliding windows keyed by source IP. They suppress
-repeat alerts for the same source/rule for five seconds.
+The behavior/anomaly detectors use sliding windows keyed by source IP or
+destination service where appropriate. They suppress repeat alerts for the same
+rule/key for five seconds.
 
-Current behavior rules:
+Current built-in rules:
 
-- `RULE-001` Port Scan
-- `RULE-002` ICMP Ping Flood
-- `RULE-003` TCP SYN Flood
-- `RULE-004` Suspicious DNS Query
-- `RULE-005` DNS Tunneling Suspicion
+- `RULE-001` Port Scan (`detection_method: behavior`)
+- `RULE-002` ICMP Ping Flood (`detection_method: behavior`)
+- `RULE-003` TCP SYN Flood (`detection_method: behavior`, SYN without ACK)
+- `RULE-004` Suspicious DNS Query (`detection_method: signature`, built-in
+  DNS signature rules for `chatgpt.com`, `gemini.google.com`, and `claude.ai`)
+- `RULE-005` DNS Tunneling Suspicion (`detection_method: anomaly`)
 
 The DNS tunneling detector marks a query suspicious when it sees long query
 names, long labels, or high-entropy labels, then alerts after enough suspicious
 queries from the same source appear within the configured window.
 
-## Suricata-Style Parser
+## Suricata-Style Subset Parser
 
-`SuricataRuleParser.parse(rule_text)` parses one rule. `parse_many()` parses an
-iterable of rule strings and ignores empty/comment-only lines.
+`SuricataRuleParser.parse(rule_text)` parses one prototype subset rule.
+`parse_many()` parses an iterable of rule strings and ignores empty/comment-only
+lines.
 
 The parser separates rules into:
 
@@ -124,9 +126,10 @@ sticky buffer changes it. In the example, `content:"/admin"` is matched against
 
 Ordered content matching means a later positive `content` must appear after the
 previous positive match in the same buffer. This is simpler than Suricata's full
-relative keyword model, but it gives predictable rule behavior.
+relative keyword model, but it gives predictable rule behavior for a learning
+prototype.
 
-## Adding A New Suricata-Style Rule
+## Adding A New Suricata-Style Subset Rule
 
 For most use cases, add rule text through `RuleConfig`:
 
@@ -143,8 +146,9 @@ rules = SlidingWindowRules(
 )
 ```
 
-Built-in signature defaults are intentionally empty. To load signatures, pass
-Suricata-style rule strings through `RuleConfig.suricata_rules`.
+The suspicious DNS blacklist is compiled into built-in Suricata-style subset
+signature rules. To load additional signatures, pass Suricata-style subset rule
+strings through `RuleConfig.suricata_rules`.
 
 ## Adding A New Behavior Detector
 
@@ -169,7 +173,8 @@ objects directly rather than relying on live packets. Tests should cover:
 
 - A matching event.
 - A non-matching event when the header, buffer, or threshold should block.
-- Alert metadata such as `rule_id`, severity, and `attack_type`.
+- Alert metadata such as `rule_id`, severity, `attack_type`, and
+  `detection_method`.
 
 Run:
 
@@ -179,9 +184,16 @@ python3 -m unittest discover -s tests
 
 ## Current Limitations
 
-- No TCP stream reassembly.
+- No IP defragmentation, TCP stream reassembly, or out-of-order TCP segment
+  handling.
+- No TLS/HTTPS, DoH, or DoT payload visibility without decrypted lab traffic.
 - No full Suricata variable expansion.
 - No complete Suricata keyword support.
 - `fast_pattern` is recorded but not used for accelerated matching.
+- `flow` is a light direction hint, not stateful TCP flow tracking.
+- No `depth/offset`, `distance/within`, `byte_test`, `flowbits`, or
+  `file_data` support.
 - HTTP parsing is intentionally lightweight and request-focused.
 - DNS parsing stores only the query name exposed by Scapy.
+- DNS tunneling heuristics can false positive on legitimate CDN, tracking, DKIM,
+  ACME challenge, or service-discovery domains.

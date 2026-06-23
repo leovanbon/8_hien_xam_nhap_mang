@@ -1,6 +1,9 @@
 # NIDS Demo Execution Guide
 
-Follow these exact steps during your presentation to demonstrate both the behavior rules and the signature rules working together.
+Follow these exact steps during your presentation to demonstrate behavior,
+anomaly, built-in DNS signature, and Suricata-style signature rules working together in an
+isolated lab. Do not run the flood commands on networks or systems you do not
+own or have explicit permission to test.
 
 ## Prerequisites
 1.  **Host Machine:** Where this code resides. You need Python 3.10+ installed.
@@ -27,7 +30,7 @@ source .venv/bin/activate
 # Replace <YOUR_INTERFACE> with the actual virtual network interface (e.g., vmnet1, virbr0)
 sudo .venv/bin/python main.py --iface <YOUR_INTERFACE> --rules custom.rules --limit 0
 ```
-*   The terminal should print: `Loaded 3 Suricata rule(s) from custom.rules`. NIDS is now listening!
+*   The terminal should print: `Loaded 3 Suricata-style rule(s) from custom.rules`. NIDS is now listening!
 
 ## Step 3: Run the Attack Script from Kali
 Switch over to your Kali Linux VM.
@@ -39,14 +42,14 @@ chmod +x kali_attack_demo.sh
 sudo ./kali_attack_demo.sh <WINDOWS_VM_IP>
 ```
 
-*   The script will systematically run through 5 different attacks:
+*   The script will systematically run through 6 lab scenarios:
     1.  **Port Scan (Nmap):** Triggers Behavior RULE-001.
-    2.  **ICMP Ping Flood (Hping3):** Triggers Behavior RULE-002.
-    3.  **TCP SYN Flood (Hping3):** Triggers Behavior RULE-003.
-    4.  **Suspicious DNS (Dig):** Triggers Behavior RULE-004.
-    5.  **DNS Tunneling (Dig):** Triggers Behavior RULE-005.
-    6.  **HTTP Signature Attacks (Curl):** Triggers your `custom.rules` Suricata signatures (SQL Injection and sqlmap).
+    2.  **ICMP Ping Flood (Hping3):** Triggers behavior RULE-002.
+    3.  **TCP SYN Flood (Hping3):** Triggers behavior RULE-003 using SYN packets without ACK.
+    4.  **Suspicious DNS (Dig):** Triggers built-in DNS signature RULE-004.
+    5.  **DNS Tunneling (Dig):** Triggers anomaly RULE-005.
+    6.  **HTTP Signature Attacks (Curl):** Triggers your `custom.rules` Suricata-style subset signatures (SQL Injection and sqlmap).
 
 ## Step 4: Show the Results
 1.  **Host Terminal:** You will see the NIDS printing out the alerts in real-time as the Kali script progresses.
-2.  **Web Dashboard:** Refresh your browser at `http://127.0.0.1:5000`. You will see a beautiful visualization of the attack, classifying the alerts by severity and type, perfectly proving that "both of the rules" (behavioral and signature) work seamlessly.
+2.  **Web Dashboard:** Refresh your browser at `http://127.0.0.1:5000`. Review the alert counts, severity distribution, top sources, and recent alert rows. Record the observed alert counts for the presentation results table instead of inventing numbers.

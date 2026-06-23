@@ -36,6 +36,7 @@ class Alert:
     timestamp: str
     rule_id: str
     attack_type: str
+    detection_method: str
     severity: str
     source_ip: str | None
     destination_ip: str | None
@@ -51,6 +52,7 @@ class Alert:
         *,
         rule_id: str,
         attack_type: str,
+        detection_method: str,
         severity: str,
         source_ip: str | None,
         destination_ip: str | None,
@@ -61,6 +63,7 @@ class Alert:
             timestamp=utc_now_iso(),
             rule_id=rule_id,
             attack_type=attack_type,
+            detection_method=detection_method,
             severity=severity,
             source_ip=source_ip,
             destination_ip=destination_ip,

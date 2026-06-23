@@ -17,7 +17,7 @@ class SlidingWindowRules:
         self.suricata = SuricataRuleEngine.from_config(self.config)
         self._dest_ports_by_src: dict[str, deque[tuple[float, int]]] = defaultdict(deque)
         self._icmp_by_src: dict[str, deque[float]] = defaultdict(deque)
-        self._syn_by_src: dict[str, deque[float]] = defaultdict(deque)
+        self._syn_by_service: dict[str, deque[float]] = defaultdict(deque)
         self._dns_tunnel_by_src: dict[str, deque[tuple[float, str, tuple[str, ...]]]] = (
             defaultdict(deque)
         )
@@ -47,10 +47,6 @@ class SlidingWindowRules:
         if syn_alert:
             alerts.append(syn_alert)
 
-        dns_alert = self._detect_suspicious_dns(event)
-        if dns_alert:
-            alerts.append(dns_alert)
-
         dns_tunnel_alert = self._detect_dns_tunneling(event)
         if dns_tunnel_alert:
             alerts.append(dns_tunnel_alert)
@@ -65,7 +61,7 @@ class SlidingWindowRules:
         for src_dict in (
             self._dest_ports_by_src,
             self._icmp_by_src,
-            self._syn_by_src,
+            self._syn_by_service,
             self._dns_tunnel_by_src,
         ):
             if len(src_dict) > self._max_tracked_sources:
@@ -94,10 +90,9 @@ class SlidingWindowRules:
     # FIN  (F)   — FIN scan, evades simple SYN-only filters (nmap -sF)
     # NULL ()    — no flags set, bypasses stateless firewalls (nmap -sN)
     # XMAS (FPU) — FIN+PSH+URG "Christmas tree" scan (nmap -sX)
-    # ACK  (A)   — firewall/filter mapping scan (nmap -sA)
-    # RST, SYN-ACK, FIN-ACK are *responses*, not probes — excluded to
-    # prevent false positives on the host being scanned.
-    _SCAN_FLAGS: frozenset[str] = frozenset({"S", "F", "", "FPU", "A"})
+    # ACK scans need TCP state tracking to classify accurately, so this
+    # prototype does not count bare ACK as a default scan probe.
+    _SCAN_FLAGS: frozenset[str] = frozenset({"S", "F", "", "FPU"})
 
     def _detect_port_scan(self, event: PacketEvent) -> Alert | None:
         if event.protocol != "TCP" or event.dst_port is None:
@@ -123,6 +118,7 @@ class SlidingWindowRules:
             rule_id="RULE-001",
             key=event.src_ip or "unknown",
             attack_type="Port Scan",
+            detection_method="behavior",
             severity="Medium",
             source_ip=event.src_ip,
             destination_ip=event.dst_ip,
@@ -163,6 +159,7 @@ class SlidingWindowRules:
             rule_id="RULE-002",
             key=event.src_ip or "unknown",
             attack_type="ICMP Ping Flood",
+            detection_method="behavior",
             severity="High",
             source_ip=event.src_ip,
             destination_ip=event.dst_ip,
@@ -173,11 +170,18 @@ class SlidingWindowRules:
             evidence={"icmp_packets": len(window)},
         )
 
+    @staticmethod
+    def _is_syn_without_ack(flags: str | None) -> bool:
+        if flags is None:
+            return False
+        return "S" in flags and "A" not in flags
+
     def _detect_syn_flood(self, event: PacketEvent) -> Alert | None:
-        if event.protocol != "TCP" or event.tcp_flags != "S":
+        if event.protocol != "TCP" or not self._is_syn_without_ack(event.tcp_flags):
             return None
 
-        window = self._syn_by_src[event.src_ip or ""]
+        service_key = f"{event.src_ip or 'unknown'}:{event.dst_ip or 'unknown'}:{event.dst_port or 'unknown'}"
+        window = self._syn_by_service[service_key]
         window.append(event.timestamp)
         self._drop_old_times(window, event.timestamp, self.config.syn_flood_window_seconds)
 
@@ -187,44 +191,23 @@ class SlidingWindowRules:
         return self._alert_once(
             now=event.timestamp,
             rule_id="RULE-003",
-            key=event.src_ip or "unknown",
+            key=service_key,
             attack_type="TCP SYN Flood",
+            detection_method="behavior",
             severity="High",
             source_ip=event.src_ip,
             destination_ip=event.dst_ip,
             description=(
-                f"{event.src_ip} sent {len(window)} SYN packets "
+                f"{event.src_ip} sent {len(window)} SYN packets without ACK "
                 f"in {self.config.syn_flood_window_seconds} seconds"
             ),
-            evidence={"syn_packets": len(window)},
-        )
-
-    def _detect_suspicious_dns(self, event: PacketEvent) -> Alert | None:
-        if not event.dns_query:
-            return None
-
-        query = event.dns_query.lower()
-        suspicious_match = next(
-            (
-                domain
-                for domain in self.config.suspicious_domains
-                if query == domain or query.endswith(f".{domain}")
-            ),
-            None,
-        )
-        if not suspicious_match:
-            return None
-
-        return self._alert_once(
-            now=event.timestamp,
-            rule_id="RULE-004",
-            key=f"{event.src_ip}:{query}",
-            attack_type="Suspicious DNS Query",
-            severity="Medium",
-            source_ip=event.src_ip,
-            destination_ip=event.dst_ip,
-            description=f"{event.src_ip} queried suspicious domain {query}",
-            evidence={"query": query, "matched_domain": suspicious_match},
+            evidence={
+                "syn_packets": len(window),
+                "dst_ip": event.dst_ip,
+                "dst_port": event.dst_port,
+                "window_seconds": self.config.syn_flood_window_seconds,
+                "service_key": service_key,
+            },
         )
 
     def _detect_dns_tunneling(self, event: PacketEvent) -> Alert | None:
@@ -232,7 +215,7 @@ class SlidingWindowRules:
             return None
 
         query = event.dns_query.lower().rstrip(".")
-        reasons = self._dns_tunnel_reasons(query)
+        reasons, query_length, max_label_length, max_label_entropy = self._dns_tunnel_features(query)
         if not reasons:
             return None
 
@@ -255,6 +238,7 @@ class SlidingWindowRules:
             rule_id="RULE-005",
             key=event.src_ip or "unknown",
             attack_type="DNS Tunneling Suspicion",
+            detection_method="anomaly",
             severity="Medium",
             source_ip=event.src_ip,
             destination_ip=event.dst_ip,
@@ -264,13 +248,19 @@ class SlidingWindowRules:
             ),
             evidence={
                 "suspicious_queries": len(window),
+                "suspicious_query_count": len(window),
+                "window_seconds": self.config.dns_tunnel_window_seconds,
                 "recent_queries": recent_queries[-5:],
                 "reason_counts": dict(reason_counts),
                 "latest_query": query,
+                "query": query,
+                "query_length": query_length,
+                "max_label_length": max_label_length,
+                "max_label_entropy": round(max_label_entropy, 3),
             },
         )
 
-    def _dns_tunnel_reasons(self, query: str) -> list[str]:
+    def _dns_tunnel_features(self, query: str) -> tuple[list[str], int, int, float]:
         reasons: list[str] = []
         labels = [label for label in query.split(".") if label]
         longest_label = max((len(label) for label in labels), default=0)
@@ -286,7 +276,7 @@ class SlidingWindowRules:
         ):
             reasons.append("high_entropy_label")
 
-        return reasons
+        return reasons, len(query), longest_label, highest_entropy
 
     @staticmethod
     def _shannon_entropy(value: str) -> float:
@@ -305,6 +295,7 @@ class SlidingWindowRules:
         rule_id: str,
         key: str,
         attack_type: str,
+        detection_method: str,
         severity: str,
         source_ip: str | None,
         destination_ip: str | None,
@@ -320,6 +311,7 @@ class SlidingWindowRules:
         return Alert.create(
             rule_id=rule_id,
             attack_type=attack_type,
+            detection_method=detection_method,
             severity=severity,
             source_ip=source_ip,
             destination_ip=destination_ip,

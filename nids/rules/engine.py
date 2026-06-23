@@ -21,9 +21,23 @@ class SuricataRuleEngine:
 
     @classmethod
     def from_config(cls, config: RuleConfig) -> "SuricataRuleEngine":
-        parsed = list(SuricataRuleParser.parse_many(config.suricata_rules))
+        parsed = list(SuricataRuleParser.parse_many(cls._suspicious_dns_rules(config)))
+        parsed.extend(SuricataRuleParser.parse_many(config.suricata_rules))
         parsed.extend(SuricataRuleParser.from_signature(sig) for sig in config.signatures)
         return cls(parsed)
+
+    @staticmethod
+    def _suspicious_dns_rules(config: RuleConfig) -> tuple[str, ...]:
+        rules: list[str] = []
+        for domain in sorted(config.suspicious_domains):
+            escaped_domain = re.escape(domain.lower())
+            rules.append(
+                'alert dns any any -> any 53 '
+                '(msg:"Suspicious DNS Query"; dns.query; '
+                f'pcre:"/(^|\\.){escaped_domain}\\.?$/i"; '
+                'classtype:bad-unknown; priority:2; sid:RULE-004; rev:1;)'
+            )
+        return tuple(rules)
 
     def evaluate(self, event: PacketEvent) -> list[Alert]:
         self._eval_count += 1
@@ -206,6 +220,7 @@ class SuricataRuleEngine:
         return Alert.create(
             rule_id=rule.rule_id,
             attack_type=rule.msg,
+            detection_method="signature",
             severity=rule.severity,
             source_ip=event.src_ip,
             destination_ip=event.dst_ip,
@@ -216,6 +231,7 @@ class SuricataRuleEngine:
                 "sid": rule.sid,
                 "rev": rule.rev,
                 "classtype": rule.classtype,
+                "query": event.dns_query,
                 "contents": [
                     {
                         "buffer": content.buffer,
@@ -224,6 +240,14 @@ class SuricataRuleEngine:
                         "fast_pattern": content.fast_pattern,
                     }
                     for content in rule.contents
+                ],
+                "pcres": [
+                    {
+                        "buffer": pcre.buffer,
+                        "expression": pcre.expression,
+                        "flags": pcre.flags,
+                    }
+                    for pcre in rule.pcres
                 ],
             },
         )

@@ -50,6 +50,7 @@ The most important fields are:
 - `timestamp`
 - `rule_id`
 - `attack_type`
+- `detection_method`
 - `severity`
 - `source_ip`
 - `destination_ip`

@@ -23,9 +23,8 @@
 \renewcommand{\hustInstAlign}{\alignLeft}
 
 \title{CÁC CƠ CHẾ PHÁT HIỆN XÂM NHẬP MẠNG}
-\subtitle{Báo cáo bài tập lớn - IT4015 Nhập môn An toàn thông tin}
+\institute{Giảng viên hướng dẫn: PGS. TS. Nguyễn Linh Giang}
 \author{\texorpdfstring{Nguyễn Đình Tuấn Minh - 20230048\\Vũ Đức Tâm - 20230064\\Nguyễn Gia Khánh - 202416803\\Nguyễn Đăng Cao Tuấn - 202400119}{Nhóm sinh viên}}
-\institute{Trường Công nghệ Thông tin và Truyền thông - Đại học Bách khoa Hà Nội\\Giảng viên hướng dẫn: PGS. TS. Nguyễn Linh Giang}
 \date{\today}
 
 \definecolor{attackred}{HTML}{CE1628}
@@ -47,21 +46,22 @@
     dashedarrow/.style={-{Stealth[length=2mm]}, thick, dashed, draw=black!65}
 }
 
-\newcommand{\metricbox}[3]{
-    \begin{tikzpicture}
-        \node[draw=#1!70, fill=#1!10, rounded corners=2pt, minimum width=3.1cm, minimum height=1.2cm, align=center] {
-            {\Large\bfseries #2}\\[-1pt]{\footnotesize #3}
-        };
-    \end{tikzpicture}
-}
-
 \begin{document}
 
-\hustintropage{IT4015 - Nhập môn An toàn thông tin}
 \husttitlepage
 
 \begin{frame}{Nội dung trình bày}
-    \tableofcontents[hideallsubsections]
+    \begin{enumerate}
+        \item Giới thiệu
+        \item Phát biểu bài toán
+        \item Mục tiêu
+        \item Phương pháp tiếp cận
+        \item Kiến trúc hệ thống
+        \item Detection Engine
+        \item Thử nghiệm và kết quả
+        \item Thảo luận
+        \item Kết luận
+    \end{enumerate}
 \end{frame}
 
 \resetPageCount
@@ -69,724 +69,491 @@
 \useStyleHustFull
 \useThinBar
 
-\section{Bài toán và mục tiêu}
+\section{Giới thiệu}
 
-\begin{frame}{Vì sao cần NIDS?}
-    \small
+\begin{frame}{1. Giới thiệu}
     \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.43\textwidth}
+        \begin{column}{0.52\textwidth}
             \textbf{Bối cảnh}
             \begin{itemize}
-                \item Firewall chưa đủ để hiểu toàn bộ traffic behavior.
-                \item Attack traffic có thể đi qua HTTP, DNS hoặc internal traffic.
-                \item Cần alert sớm để điều tra và phản ứng.
-            \end{itemize}
-
-            \vspace{0.25em}
-            \textbf{Project objectives}
-            \begin{itemize}
-                \item Xây dựng NIDS nhỏ gọn bằng Python.
-                \item Minh họa hai detection layers: behavior-based và signature-based.
+                \item Tấn công mạng không chỉ xuất hiện ở biên mạng mà còn nằm lẫn trong traffic hợp lệ.
+                \item Firewall kiểm soát truy cập, nhưng không luôn đủ để nhận diện scan, flood, tunneling hoặc payload độc hại.
+                \item Network Intrusion Detection System (NIDS) quan sát packet/flow và sinh cảnh báo cho người vận hành.
             \end{itemize}
         \end{column}
-        \begin{column}{0.56\textwidth}
-            \centering
-            \resizebox{\linewidth}{!}{%
-            \begin{tikzpicture}[node distance=0.6cm and 0.45cm]
-                \node[cloud, cloud puffs=10, draw=black!50, fill=safegray, minimum width=1.7cm, minimum height=0.9cm, align=center] (net) {Internet};
-                \node[redbox, right=of net, minimum width=2.05cm] (attacker) {Attack\\\footnotesize scan/flood/payload};
-                \node[bluebox, right=of attacker, minimum width=2.0cm] (firewall) {Firewall\\\footnotesize lớp lọc ban đầu};
-                \node[greenbox, right=of firewall, minimum width=2.05cm] (server) {Dịch vụ\\\footnotesize HTTP/DNS};
-                \node[orangebox, below=1.15cm of firewall, minimum width=2.7cm] (nids) {NIDS Sensor\\\footnotesize monitor + alert};
-                \node[bluebox, below=1.15cm of server, minimum width=2.7cm] (dashboard) {Dashboard\\\footnotesize alert statistics};
-
-                \draw[arrow] (net) -- (attacker);
-                \draw[arrow] (attacker) -- (firewall);
-                \draw[arrow] (firewall) -- (server);
-                \draw[dashedarrow] (firewall) -- node[left, font=\scriptsize] {mirror/sniff} (nids);
-                \draw[arrow] (nids) -- (dashboard);
-            \end{tikzpicture}
-            }
-
-            \vspace{0.45em}
-            \footnotesize NIDS hoạt động thụ động: đọc traffic, phân tích và sinh alert; không chặn trực tiếp như IPS.
+        \begin{column}{0.44\textwidth}
+            \begin{block}{Trọng tâm}
+                \begin{itemize}
+                    \item Tìm hiểu cơ chế phát hiện xâm nhập ở tầng mạng.
+                    \item Xây dựng prototype NIDS nhỏ bằng Python.
+                    \item Demo các nhóm rule behavior-based và signature-based.
+                \end{itemize}
+            \end{block}
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{Phạm vi triển khai}
-    \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.33\textwidth}
-            \metricbox{detectblue}{PCAP / Live}{data source}
-        \end{column}
-        \begin{column}{0.33\textwidth}
-            \metricbox{attackred}{5 rules}{behavior detection}
-        \end{column}
-        \begin{column}{0.33\textwidth}
-            \metricbox{goodgreen}{3 rules}{HTTP signature demo}
-        \end{column}
-    \end{columns}
+\begin{frame}{NIDS trong hệ thống phòng thủ}
+    \centering
+    \resizebox{0.92\linewidth}{!}{%
+    \begin{tikzpicture}[node distance=0.7cm and 0.85cm]
+        \node[cloud, cloud puffs=10, draw=black!50, fill=safegray, minimum width=2.0cm, minimum height=1.0cm] (net) {Internet};
+        \node[bluebox, right=of net, minimum width=2.2cm] (fw) {Firewall};
+        \node[bluebox, right=of fw, minimum width=2.2cm] (sw) {Switch\\\footnotesize SPAN/TAP};
+        \node[greenbox, right=of sw, minimum width=2.6cm] (lan) {Internal Network};
+        \node[orangebox, below=1.2cm of sw, minimum width=3.0cm] (nids) {NIDS Sensor\\\footnotesize capture + analyze};
+        \node[redbox, right=1.0cm of nids, minimum width=2.4cm] (alert) {Alert};
+        \node[bluebox, right=of alert, minimum width=2.4cm] (dash) {Dashboard/SIEM};
 
-    \vspace{0.7cm}
+        \draw[arrow] (net) -- (fw);
+        \draw[arrow] (fw) -- (sw);
+        \draw[arrow] (sw) -- (lan);
+        \draw[dashedarrow] (sw) -- node[right, font=\scriptsize] {mirrored traffic} (nids);
+        \draw[arrow] (nids) -- (alert);
+        \draw[arrow] (alert) -- (dash);
+    \end{tikzpicture}
+    }
+
+    \vspace{0.5cm}
+    \small NIDS thường nằm ngoài đường truyền chính, nhận bản sao traffic để phân tích và không trực tiếp thay đổi luồng packet.
+\end{frame}
+
+\section{Phát biểu bài toán}
+
+\begin{frame}{2. Phát biểu bài toán}
+    \textbf{Bài toán đặt ra}
+    \begin{itemize}
+        \item Cần phát hiện sớm các hành vi bất thường hoặc độc hại trong network traffic.
+        \item Traffic đầu vào có thể đến từ PCAP hoặc live interface, gồm nhiều giao thức khác nhau.
+        \item Cảnh báo cần có bằng chứng giải thích được: rule nào kích hoạt, vì sao kích hoạt, nguồn/đích liên quan.
+    \end{itemize}
+
+    \vspace{0.6em}
+    \begin{alertblock}{Thách thức}
+        Signature rõ ràng nhưng dễ bỏ sót biến thể mới; anomaly/behavior bắt được hành vi lạ nhưng phụ thuộc threshold và dễ false positive nếu thiếu ngữ cảnh.
+    \end{alertblock}
+\end{frame}
+
+\section{Mục tiêu}
+
+\begin{frame}{3. Mục tiêu}
     \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.48\textwidth}
-            \textbf{Đã thực hiện}
+        \begin{column}{0.49\textwidth}
+            \textbf{Mục tiêu chính}
             \begin{itemize}
-                \item Packet capture bằng Scapy.
-                \item Chuẩn hóa thành \texttt{PacketEvent}.
-                \item Detect port scan, ICMP flood, SYN flood, DNS đáng ngờ, DNS tunneling.
-                \item Match Suricata-style rule subset cho HTTP/DNS/payload.
-                \item Lưu JSONL và trực quan hóa bằng Flask.
+                \item Trình bày các nhóm cơ chế phát hiện xâm nhập mạng.
+                \item Thiết kế pipeline xử lý từ packet tới alert.
+                \item Triển khai detection engine có thể kiểm thử và demo.
             \end{itemize}
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \textbf{Giới hạn chủ động đặt ra}
+        \begin{column}{0.49\textwidth}
+            \textbf{Phạm vi}
             \begin{itemize}
-                \item Không thay thế Suricata, Zeek hoặc IDS production.
-                \item Chưa giải mã TLS/HTTPS.
-                \item Chưa tái tạo TCP stream đầy đủ.
-                \item Detection threshold dùng cấu hình tĩnh để dễ trình diễn.
+                \item Không xây dựng IDS production thay thế Suricata.
+                \item Tập trung vào minh họa scan, flood, DNS tunneling và HTTP/DNS signature.
+                \item Không xử lý TLS decryption hoặc TCP stream reassembly đầy đủ.
             \end{itemize}
         \end{column}
     \end{columns}
+\end{frame}
+
+\section{Phương pháp tiếp cận}
+
+\begin{frame}{4. Phương pháp tiếp cận}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.49\textwidth}
+            \begin{block}{Behavior-based detection}
+                \begin{itemize}
+                    \item Theo dõi chuỗi sự kiện theo source IP và time window.
+                    \item Đếm số port, số ICMP, số SYN hoặc số DNS query có dấu hiệu tunneling.
+                    \item Phù hợp với scan, flood và tunneling.
+                    \item Threshold trong prototype là ngưỡng lab/demo, cần hiệu chỉnh theo baseline từng mạng thực tế.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.49\textwidth}
+            \begin{alertblock}{Signature-based detection}
+                \begin{itemize}
+                    \item So khớp traffic với rule đã biết.
+                    \item Bao gồm content/header rule, DNS domain blacklist, User-Agent hoặc payload pattern đã biết.
+                    \item Phù hợp với HTTP SQLi, scanner User-Agent, DNS/payload pattern.
+                \end{itemize}
+            \end{alertblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{So sánh các cơ chế phát hiện}
+    \small
+    \renewcommand{\arraystretch}{1.18}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{p{3.2cm}p{5.3cm}p{4.2cm}}
+        \toprule
+        \textbf{Cơ chế} & \textbf{Ý tưởng} & \textbf{Vai trò} \\
+        \midrule
+        Signature-based & Match payload/header với mẫu tấn công đã biết. & Triển khai rule Suricata-style subset và DNS domain blacklist. \\
+        Behavior-based & Quan sát tần suất và chuỗi hành vi theo thời gian. & Triển khai sliding-window rules cho scan/flood/DNS tunneling. \\
+        Statistical anomaly & Học baseline rồi báo động khi traffic lệch chuẩn. & Thảo luận, chưa triển khai. \\
+        Stateful protocol & Theo dõi session/protocol state và violation. & Nêu hướng mở rộng. \\
+        Correlation/Hybrid & Kết hợp nhiều signal thành incident có ngữ cảnh. & Ví dụ: gom port scan $\rightarrow$ HTTP SQLi thành incident có timeline. \\
+        \bottomrule
+    \end{tabular}
+    }
 \end{frame}
 
 \section{Kiến trúc hệ thống}
 
-\begin{frame}{Pipeline xử lý của hệ thống}
+\begin{frame}{5. Kiến trúc hệ thống}
     \centering
+    \resizebox{0.96\linewidth}{!}{%
     \begin{tikzpicture}[node distance=0.55cm and 0.7cm]
-        \node[bluebox, minimum width=2.3cm] (capture) {Capture\\\footnotesize PCAP / iface};
-        \node[bluebox, right=of capture, minimum width=2.3cm] (parser) {Parser\\\footnotesize Scapy $\rightarrow$ event};
-        \node[orangebox, right=of parser, minimum width=2.7cm] (engine) {Detection Engine\\\footnotesize behavior + signature};
-        \node[greenbox, right=of engine, minimum width=2.25cm] (store) {Storage\\\footnotesize JSON Lines};
-        \node[greenbox, right=of store, minimum width=2.25cm] (dash) {Dashboard\\\footnotesize Flask};
+        \node[bluebox, minimum width=2.4cm] (capture) {Capture\\\footnotesize PCAP / iface};
+        \node[bluebox, right=of capture, minimum width=2.45cm] (parser) {Parser\\\footnotesize Scapy layers};
+        \node[orangebox, right=of parser, minimum width=2.75cm] (engine) {Detection Engine\\\footnotesize behavior + signature};
+        \node[greenbox, right=of engine, minimum width=2.35cm] (store) {Storage\\\footnotesize JSONL};
+        \node[greenbox, right=of store, minimum width=2.35cm] (dash) {Dashboard\\\footnotesize Flask};
 
         \draw[arrow] (capture) -- (parser);
         \draw[arrow] (parser) -- (engine);
         \draw[arrow] (engine) -- (store);
         \draw[arrow] (store) -- (dash);
 
-        \node[redbox, below=1.1cm of engine, minimum width=2.45cm] (rules1) {Behavior rules\\\footnotesize sliding window};
-        \node[redbox, below=1.1cm of store, minimum width=2.45cm] (rules2) {Signature rules\\\footnotesize Suricata subset};
+        \node[redbox, below=1.05cm of engine, minimum width=2.55cm] (rules1) {Behavior/anomaly rules};
+        \node[redbox, below=1.05cm of store, minimum width=2.75cm] (rules2) {DNS + HTTP signatures};
         \draw[dashedarrow] (rules1) -- (engine);
         \draw[dashedarrow] (rules2) -- (engine);
     \end{tikzpicture}
+    }
 
-    \vspace{0.6cm}
-    \begin{block}{Design idea}
-        The proposed NIDS follows a CIDF-like IDS pipeline architecture and implements a lightweight Suricata/Snort-style detection model, combining behavior-based detection with signature-based rule matching.
+    \vspace{0.55cm}
+    \begin{block}{Luồng thực thi}
+        \texttt{main.py} đọc packet, \texttt{parser.py} chuẩn hóa thành \texttt{PacketEvent}, \texttt{NIDSEngine} đánh giá rule, \texttt{AlertStore} append JSONL, dashboard đọc file và hiển thị thống kê.
     \end{block}
 \end{frame}
 
-\begin{frame}{Proposed Design Simulation}
-    \begin{block}{Design statement}
-        The proposed NIDS follows a CIDF-like IDS pipeline architecture and implements a lightweight Suricata/Snort-style detection model, combining behavior-based detection with signature-based rule matching.
-    \end{block}
-
-    \vspace{0.5cm}
+\begin{frame}{Chuẩn hóa dữ liệu: PacketEvent}
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.48\textwidth}
-            \textbf{CIDF-like pipeline}
+            \textbf{Lý do chuẩn hóa}
             \begin{itemize}
-                \item Tách vai trò capture, analysis, storage và visualization.
-                \item Mỗi module nhận một data format rõ ràng.
-                \item Dễ thay thế PCAP/live traffic source hoặc dashboard.
+                \item Raw packet phụ thuộc lớp giao thức và API của Scapy.
+                \item Detection engine cần schema ổn định để rule dễ viết, dễ test.
+                \item Cùng một alert format dùng được cho cả behavior và signature.
             \end{itemize}
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \textbf{Suricata/Snort-style model}
-            \begin{itemize}
-                \item Rule có header và option.
-                \item So khớp payload, HTTP field, DNS query.
-                \item Kết hợp với rule behavior dùng time window.
-            \end{itemize}
+        \begin{column}{0.49\textwidth}
+            \begin{block}{Trường tiêu biểu}
+                \footnotesize
+                \texttt{timestamp, src\_ip, dst\_ip}\\
+                \texttt{src\_port, dst\_port, protocol}\\
+                \texttt{tcp\_flags, icmp\_type}\\
+                \texttt{dns\_query}\\
+                \texttt{http\_method, http\_uri}\\
+                \texttt{http\_host, http\_user\_agent}\\
+                \texttt{payload\_text}
+            \end{block}
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{CIDF-like Pipeline Mapping}
-    \centering
-    \resizebox{0.92\linewidth}{!}{%
-    \begin{tikzpicture}[node distance=0.55cm and 0.7cm]
-        \node[bluebox, minimum width=2.6cm, minimum height=0.9cm] (eg) {Event Generator\\\footnotesize Scapy capture};
-        \node[bluebox, right=of eg, minimum width=2.6cm, minimum height=0.9cm] (norm) {Normalizer\\\footnotesize PacketEvent};
-        \node[orangebox, right=of norm, minimum width=2.6cm, minimum height=0.9cm] (ea) {Event Analyzer\\\footnotesize rule engine};
-        \node[greenbox, right=of ea, minimum width=2.6cm, minimum height=0.9cm] (edb) {Event DB\\\footnotesize JSONL alerts};
-        \node[greenbox, right=of edb, minimum width=2.6cm, minimum height=0.9cm] (ru) {Response Unit\\\footnotesize dashboard};
-
-        \draw[arrow] (eg) -- (norm);
-        \draw[arrow] (norm) -- (ea);
-        \draw[arrow] (ea) -- (edb);
-        \draw[arrow] (edb) -- (ru);
-
-        \node[box, below=0.8cm of norm, text width=3.4cm] (raw) {\footnotesize Raw packet không đưa thẳng vào rule engine};
-        \node[box, below=0.8cm of ea, text width=3.4cm] (schema) {\footnotesize Event schema giúp rule dễ test};
-        \draw[dashedarrow] (raw) -- (norm);
-        \draw[dashedarrow] (schema) -- (ea);
-    \end{tikzpicture}
+\begin{frame}{Mapping module}
+    \small
+    \renewcommand{\arraystretch}{1.16}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{p{3.0cm}p{4.0cm}p{5.6cm}}
+        \toprule
+        \textbf{Module} & \textbf{File chính} & \textbf{Vai trò} \\
+        \midrule
+        Capture & \texttt{nids/capture.py} & Đọc PCAP hoặc sniff live interface. \\
+        Parser & \texttt{nids/parser.py} & Chuyển packet thành \texttt{PacketEvent}. \\
+        Orchestrator & \texttt{nids/engine.py} & Đếm packet, gọi rule engine, ghi alert. \\
+        Behavior rules & \texttt{behavior.py} & Sliding window cho scan/flood/DNS tunneling. \\
+        Signature rules & \texttt{rules/parser.py}, \texttt{rules/engine.py} & Match DNS blacklist mặc định và rule Suricata-style subset. \\
+        Dashboard & \texttt{dashboard/app.py} & Đọc JSONL, tính thống kê, render web. \\
+        \bottomrule
+    \end{tabular}
     }
 \end{frame}
 
-\begin{frame}{Packet Normalization thành PacketEvent}
-    \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.48\textwidth}
-            \textbf{Vấn đề}
-            \begin{itemize}
-                \item Raw packet phụ thuộc từng giao thức và thư viện Scapy.
-                \item Rule engine cần cùng một schema để đánh giá TCP, ICMP, DNS, HTTP.
-                \item Nếu xử lý trực tiếp payload thô, rule sẽ khó viết và khó kiểm thử.
-            \end{itemize}
+\section{Detection Engine}
 
-            \vspace{0.5em}
-            \textbf{Cách làm}
-            \begin{itemize}
-                \item Parser rút ra metadata chung: IP, port, protocol, length, TCP flags.
-                \item Parser bổ sung trường chuyên biệt: DNS query, HTTP method, URI, Host, User-Agent, payload text.
-            \end{itemize}
-        \end{column}
-        \begin{column}{0.5\textwidth}
-            \centering
-            \begin{tikzpicture}[node distance=0.38cm]
-                \node[redbox, minimum width=5.6cm] (raw) {Raw packet};
-                \node[bluebox, below=of raw, minimum width=5.6cm] (scapy) {Scapy layers};
-                \node[greenbox, below=of scapy, minimum width=5.6cm] (event) {\texttt{PacketEvent}};
-                \draw[arrow] (raw) -- (scapy);
-                \draw[arrow] (scapy) -- (event);
-                \node[box, below=0.45cm of event, text width=5.3cm, align=left] {
-                    \footnotesize
-                    \texttt{timestamp, src\_ip, dst\_ip}\\
-                    \texttt{src\_port, dst\_port, protocol}\\
-                    \texttt{tcp\_flags, dns\_query}\\
-                    \texttt{http\_uri, http\_user\_agent}
-                };
-            \end{tikzpicture}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{Detection Engine: hai lớp detection}
-    \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.49\textwidth}
-            \begin{block}{1. Behavior-based detection}
-                \begin{itemize}
-                    \item Theo dõi event sequence trong time window.
-                    \item Phù hợp với scan, flood, tunneling và frequency anomaly.
-                    \item Không cần biết trước payload chính xác.
-                \end{itemize}
-            \end{block}
-        \end{column}
-        \begin{column}{0.49\textwidth}
-            \begin{alertblock}{2. Signature-based matching}
-                \begin{itemize}
-                    \item So khớp rule với header, buffer HTTP/DNS/payload.
-                    \item Phù hợp với SQL Injection, công cụ tự động, chuỗi độc hại đã biết.
-                    \item Alert dễ giải thích bằng evidence.
-                \end{itemize}
-            \end{alertblock}
-        \end{column}
-    \end{columns}
-
-    \vspace{0.45cm}
+\begin{frame}{6. Detection Engine}
     \centering
-    \begin{tikzpicture}[node distance=0.55cm and 0.75cm]
-        \node[bluebox, minimum width=2.3cm] (event) {PacketEvent};
-        \node[orangebox, right=of event, yshift=0.45cm, minimum width=2.8cm] (behavior) {SlidingWindowRules};
-        \node[orangebox, right=of event, yshift=-0.45cm, minimum width=2.8cm] (sig) {SuricataRuleEngine};
-        \node[greenbox, right=3.0cm of event, minimum width=2.25cm] (alert) {Alert};
+    \resizebox{0.86\linewidth}{!}{%
+    \begin{tikzpicture}[node distance=0.65cm and 0.9cm]
+        \node[bluebox, minimum width=2.5cm] (event) {\texttt{PacketEvent}};
+        \node[orangebox, right=of event, yshift=0.75cm, minimum width=3.0cm] (behavior) {SlidingWindowRules\\\footnotesize counters, queues, entropy};
+        \node[orangebox, right=of event, yshift=-0.75cm, minimum width=3.0cm] (sig) {SuricataRuleEngine\\\footnotesize header + options};
+        \node[greenbox, right=3.9cm of event, minimum width=2.6cm] (alert) {\texttt{Alert}};
+        \node[bluebox, right=of alert, minimum width=2.6cm] (json) {JSONL};
+
         \draw[arrow] (event) -- (behavior);
         \draw[arrow] (event) -- (sig);
         \draw[arrow] (behavior) -- (alert);
         \draw[arrow] (sig) -- (alert);
-    \end{tikzpicture}
-\end{frame}
-
-\section{Attack and Detection Mechanisms}
-
-\begin{frame}{Port Scan: principle and detection condition}
-    \textbf{Attack mechanism}
-    \begin{itemize}
-        \item Attacker gửi probe TCP tới nhiều cổng của cùng mục tiêu.
-        \item Mục tiêu là identify open services: SSH, HTTP, SMB, database.
-        \item Đây thường là bước tiền khai thác trước khi chọn lỗ hổng cụ thể.
-    \end{itemize}
-
-    \vspace{0.55em}
-    \textbf{Detection condition trong đồ án}
-    \begin{itemize}
-        \item Một source chạm \textbf{20 unique TCP destination ports trong 10 giây}.
-        \item Chỉ đếm các flag probe: SYN, FIN, NULL, XMAS, ACK.
-        \item Không đếm response packets như RST hoặc SYN-ACK để giảm false positive.
-    \end{itemize}
-\end{frame}
-
-\begin{frame}{Port Scan: probe flow}
-    \centering
-    \resizebox{0.88\linewidth}{!}{%
-    \begin{tikzpicture}[scale=1.08, transform shape]
-        \node[redbox, minimum width=2.4cm, minimum height=1.0cm] (atk) {Kali\\Attacker};
-        \node[greenbox, right=6.2cm of atk, minimum width=2.4cm, minimum height=1.0cm] (victim) {Target\\VM};
-        \foreach \y/\p in {1.55/22,1.05/80,0.55/443,0/445,-0.55/3306,-1.05/8080,-1.55/9200} {
-            \draw[arrow, draw=attackred!75] ([yshift=\y cm]atk.east) -- node[above, sloped, font=\scriptsize] {TCP/\p} ([yshift=\y cm]victim.west);
-        }
-        \node[orangebox, below=2.25cm of $(atk)!0.5!(victim)$, minimum width=5.2cm, minimum height=0.9cm] (rule) {RULE-001\\\footnotesize unique dst ports $\geq$ 20 trong 10s};
-        \draw[dashedarrow] ($(atk)!0.5!(victim)$) -- (rule);
+        \draw[arrow] (alert) -- (json);
     \end{tikzpicture}
     }
+
+    \vspace{0.55cm}
+    \small Detection engine chạy song song hai lớp: behavior/anomaly rules phát hiện chuỗi hành vi bất thường; signature rules phát hiện mẫu đã biết trong header, HTTP/DNS buffer hoặc domain blacklist.
 \end{frame}
 
-\begin{frame}{Flood: principle and detection threshold}
+\begin{frame}{Behavior/anomaly rules và signature rules}
+    \small
+    \renewcommand{\arraystretch}{1.18}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{p{1.55cm}p{2.65cm}p{3.0cm}p{5.25cm}p{1.9cm}}
+        \toprule
+        \textbf{Rule} & \textbf{Attack} & \textbf{Nhóm phát hiện} & \textbf{Điều kiện lab/demo} & \textbf{Severity} \\
+        \midrule
+        RULE-001 & Port Scan & Behavior-based & $\geq 20$ TCP destination ports từ một source trong 10s. & Medium \\
+        RULE-002 & ICMP Ping Flood & Behavior-based & $\geq 100$ ICMP request packets trong 10s. & High \\
+        RULE-003 & TCP SYN Flood & Behavior-based & $\geq 100$ TCP SYN packets without ACK tới cùng destination service trong 10s. & High \\
+        RULE-004 & Suspicious DNS & Signature-based & DNS query khớp domain blacklist như \texttt{chatgpt.com}, \texttt{gemini.google.com}, \texttt{claude.ai}. & Medium \\
+        RULE-005 & DNS Tunneling & Behavior/anomaly-based & $\geq 5$ DNS query đáng ngờ từ cùng source trong 30s. & Medium \\
+        \bottomrule
+    \end{tabular}
+    }
+    \vspace{0.35em}
+    \footnotesize RULE-004 được sinh từ domain blacklist và chạy trong signature engine; các threshold behavior/anomaly dùng để demo trong lab, không phải ngưỡng production cố định.
+\end{frame}
+
+\begin{frame}{Sliding window và giảm false positive}
+    \small
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.48\textwidth}
-            \begin{block}{ICMP Ping Flood}
-                \begin{itemize}
-                    \item Gửi nhiều Echo Request để tiêu tốn băng thông hoặc CPU xử lý.
-                    \item Rule chỉ đếm request-side: type 8, 13, 17.
-                    \item Demo threshold: \textbf{100 packets / 10 seconds}.
-                \end{itemize}
-            \end{block}
+            \textbf{Sliding window}
+            \begin{itemize}
+                \item Mỗi source IP có queue sự kiện gần nhất.
+                \item Khi event mới đến, loại bỏ event ngoài cửa sổ thời gian.
+                \item Vượt threshold thì tạo alert kèm evidence.
+            \end{itemize}
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{alertblock}{TCP SYN Flood}
-                \begin{itemize}
-                    \item Gửi nhiều SYN để tạo trạng thái kết nối chưa hoàn tất.
-                    \item Rule đếm packet có TCP flag đúng bằng \texttt{S}.
-                    \item Demo threshold: \textbf{100 SYN / 10 seconds}.
-                \end{itemize}
+        \begin{column}{0.49\textwidth}
+            \textbf{Context filtering}
+            \begin{itemize}
+                \item Port scan chỉ đếm probe flags như SYN, FIN, NULL, Xmas.
+                \item Xmas scan tương ứng FIN + PSH + URG.
+                \item ACK scan cần TCP state tracking; prototype chưa khẳng định phát hiện ACK scan chính xác.
+                \item ICMP flood chỉ đếm request-side: type 8, 13, 17.
+                \item Cooldown 5 giây cho cùng \texttt{rule\_id} và key để tránh alert trùng lặp.
+            \end{itemize}
+        \end{column}
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{DNS tunneling}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.50\textwidth}
+            \textbf{Dấu hiệu được dùng}
+            \begin{itemize}
+                \item Query name dài ít nhất 100 ký tự.
+                \item Một label dài ít nhất 45 ký tự.
+                \item Label dài ít nhất 24 ký tự và entropy $\geq 3.8$.
+                \item Có ít nhất 5 query đáng ngờ từ cùng source trong 30 giây.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.46\textwidth}
+            \textbf{Entropy Shannon}
+            \[
+                H(X) = -\sum_i p(x_i)\log_2 p(x_i)
+            \]
+            \begin{block}{Ý nghĩa}
+                Label được encode/base64 thường dài, phân bố ký tự đều hơn tên miền bình thường, nên entropy cao hơn.
+            \end{block}
+            \begin{alertblock}{False positive}
+                \footnotesize CDN, tracking, DKIM, ACME challenge hoặc service discovery cũng có thể tạo domain dài; thực tế nên kết hợp whitelist, NXDOMAIN rate, unique subdomain, qtype và reputation.
             \end{alertblock}
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{Flood: threshold crossing over time}
-    \centering
-    \resizebox{0.86\linewidth}{!}{%
-    \begin{tikzpicture}[x=0.92cm, y=0.58cm]
-        \draw[->, thick] (0,0) -- (11,0) node[right, font=\scriptsize] {time};
-        \draw[->, thick] (0,0) -- (0,5.2) node[above, font=\scriptsize] {packet count};
-        \foreach \x/\lab in {0/0s,2/2s,4/4s,6/6s,8/8s,10/10s}
-            \draw (\x,0.1) -- (\x,-0.1) node[below, font=\scriptsize] {\lab};
-        \foreach \x/\h in {0.5/0.8,1/1.3,1.5/1.8,2/2.2,2.5/2.6,3/3.0,3.5/3.4,4/3.8,4.5/4.2,5/4.5,5.5/4.8,6/5.0,6.5/5.0,7/5.0,7.5/5.0,8/5.0,8.5/5.0,9/5.0,9.5/5.0,10/5.0}
-            \draw[attackred, line width=1.8pt] (\x,0) -- (\x,\h);
-        \draw[dashed, detectblue, thick] (0,4.2) -- (10.6,4.2) node[right, font=\scriptsize] {threshold};
-        \node[orangebox, minimum width=3.2cm, minimum height=0.9cm] at (8.1,3.0) {Alert on threshold crossing\\\footnotesize within 10s window};
-    \end{tikzpicture}
-    }
-\end{frame}
-
-\begin{frame}{DNS Anomaly: principle and formula}
-    \textbf{Attack mechanism}
-    \begin{itemize}
-        \item DNS thường được phép đi qua firewall nên có thể bị lợi dụng làm kênh phụ.
-        \item Attacker có thể query malicious domain hoặc nhúng data vào DNS label.
-        \item Encoded/base64 data thường tạo long label, khó đọc và entropy cao.
-    \end{itemize}
-
-    \vspace{0.6em}
-    \textbf{Shannon entropy dùng để đánh giá label}
-    \[
-        H(X) = -\sum_i p(x_i)\log_2 p(x_i)
-    \]
-    \begin{itemize}
-        \item Label đủ dài và có entropy $\geq 3.8$ được xem là chỉ báo tunneling.
-        \item RULE-005 tạo alert khi có ít nhất 5 anomalous queries trong 30 giây.
-    \end{itemize}
-\end{frame}
-
-\begin{frame}{DNS Anomaly: rule diagram}
-    \centering
-    \resizebox{0.58\linewidth}{!}{%
-    \begin{tikzpicture}[node distance=0.42cm]
-        \node[redbox, text width=6.2cm, minimum height=0.8cm] (q1) {\texttt{malware.test}};
-        \node[bluebox, below=of q1, text width=6.2cm, minimum height=0.8cm] (q2) {\texttt{base64-data...tunnel.example.com}};
-        \node[orangebox, below=of q2, text width=6.2cm, minimum height=0.8cm] (features) {
-            Indicators: long query, long label, high entropy
-        };
-        \node[greenbox, below=of features, text width=6.2cm, minimum height=1.0cm] (alert) {
-            RULE-004: suspicious domain\\
-            RULE-005: $\geq$ 5 anomalous queries / 30s
-        };
-        \draw[arrow] (q1) -- (features);
-        \draw[arrow] (q2) -- (features);
-        \draw[arrow] (features) -- (alert);
-    \end{tikzpicture}
-    }
-\end{frame}
-
-\begin{frame}{HTTP Signature: rule and example}
-    \textbf{Demo rules}
-    \begin{itemize}
-        \item SQL Injection trong HTTP URI.
-        \item User-Agent chứa \texttt{sqlmap}.
-        \item SQL Injection trong body POST hoặc payload thô.
-    \end{itemize}
-
-    \vspace{0.6em}
-    \textbf{Rule example}
-    \begin{block}{Suricata-style}
-        \footnotesize
-        \texttt{alert http any any -> any 80}\\
-        \texttt{(msg:"sqlmap Scanner User-Agent Detected";}\\
-        \texttt{http.user\_agent; content:"sqlmap"; nocase;}\\
-        \texttt{classtype:attempted-recon; priority:2; sid:1000002; rev:1;)}
-    \end{block}
-\end{frame}
-
-\begin{frame}{HTTP Signature: sticky buffer diagram}
-    \centering
-    \resizebox{0.76\linewidth}{!}{%
-    \begin{tikzpicture}[node distance=0.5cm]
-        \node[redbox, minimum width=6.0cm, minimum height=0.8cm] (req) {HTTP Request};
-        \node[bluebox, below left=0.85cm and 0.25cm of req, minimum width=2.35cm] (uri) {http.uri};
-        \node[bluebox, below=0.85cm of req, minimum width=2.75cm] (ua) {http.user\_agent};
-        \node[bluebox, below right=0.85cm and 0.25cm of req, minimum width=2.35cm] (body) {pkt\_data};
-        \node[orangebox, below=1.25cm of ua, minimum width=6.0cm, minimum height=0.8cm] (match) {content / pcre / nocase};
-        \node[greenbox, below=of match, minimum width=6.0cm, minimum height=0.8cm] (alert) {Alert + evidence};
-        \draw[arrow] (req) -- (uri);
-        \draw[arrow] (req) -- (ua);
-        \draw[arrow] (req) -- (body);
-        \draw[arrow] (uri) -- (match);
-        \draw[arrow] (ua) -- (match);
-        \draw[arrow] (body) -- (match);
-        \draw[arrow] (match) -- (alert);
-    \end{tikzpicture}
-    }
-\end{frame}
-
-\section{IDS Design Simulation}
-
-\begin{frame}{Simulation Scope trong đồ án}
-    \textbf{Không xây dựng IDS production}
-    \begin{itemize}
-        \item Mục tiêu là simulate các core functional blocks của một NIDS.
-        \item Ưu tiên readability, demoability và testability hơn high performance.
-        \item Mỗi alert cần có rule ID, description và evidence để giải thích được.
-    \end{itemize}
-
-    \vspace{0.55em}
-    \textbf{Hai detection layers được simulate}
-    \begin{itemize}
-        \item Behavior-based detection: detect anomaly theo frequency, time window và entropy.
-        \item Signature-based matching: simulate cách Snort/Suricata dùng rule để match header, buffer và content.
-    \end{itemize}
-\end{frame}
-
-\begin{frame}{Snort/Suricata-style Rule Model}
-    \centering
-    \resizebox{0.88\linewidth}{!}{%
-    \begin{tikzpicture}[node distance=0.55cm]
-        \node[redbox, text width=8.2cm, minimum height=0.85cm] (rule) {
-            \texttt{alert http any any -> any 80 (msg; http.user\_agent; content; sid;)}
-        };
-        \node[bluebox, below left=0.85cm and 0.15cm of rule, text width=3.5cm] (header) {
-            Header\\\footnotesize action, protocol, IP, port, direction
-        };
-        \node[orangebox, below right=0.85cm and 0.15cm of rule, text width=3.5cm] (opts) {
-            Options\\\footnotesize msg, sid, priority, buffer, content
-        };
-        \node[greenbox, below=1.85cm of rule, text width=7.2cm] (match) {
-            Match khi header đúng và tất cả option conditions thỏa mãn
-        };
-        \draw[arrow] (rule) -- (header);
-        \draw[arrow] (rule) -- (opts);
-        \draw[arrow] (header) -- (match);
-        \draw[arrow] (opts) -- (match);
-    \end{tikzpicture}
-    }
-\end{frame}
-
-\begin{frame}{Behavior + Signature Fusion Flow}
-    \centering
-    \resizebox{0.9\linewidth}{!}{%
-    \begin{tikzpicture}[node distance=0.62cm and 0.95cm]
-        \node[bluebox, minimum width=2.4cm] (event) {PacketEvent};
-        \node[orangebox, right=of event, yshift=0.8cm, minimum width=3.1cm] (behavior) {Behavior rules\\\footnotesize window, counters, entropy};
-        \node[orangebox, right=of event, yshift=-0.8cm, minimum width=3.1cm] (signature) {Signature rules\\\footnotesize header + sticky buffer};
-        \node[greenbox, right=3.8cm of event, minimum width=2.7cm] (alerts) {Alert list};
-        \node[bluebox, right=of alerts, minimum width=2.7cm] (store) {JSONL + Dashboard};
-
-        \draw[arrow] (event) -- (behavior);
-        \draw[arrow] (event) -- (signature);
-        \draw[arrow] (behavior) -- (alerts);
-        \draw[arrow] (signature) -- (alerts);
-        \draw[arrow] (alerts) -- (store);
-    \end{tikzpicture}
-    }
-
-    \vspace{0.45cm}
-    \begin{block}{Ý nghĩa}
-        Behavior rules bắt anomaly patterns theo time series; signature rules bắt known payload hoặc application fields. Hai nhánh cùng sinh ra một \texttt{Alert} format.
-    \end{block}
-\end{frame}
-
-\begin{frame}{Alert Format và Evidence}
-    \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.48\textwidth}
-            \textbf{Main alert fields}
-            \begin{itemize}
-                \item \texttt{rule\_id}: rule identifier.
-                \item \texttt{attack\_type}: attack type.
-                \item \texttt{severity}: mức độ nghiêm trọng.
-                \item \texttt{source\_ip}, \texttt{destination\_ip}.
-                \item \texttt{description}: short description.
-                \item \texttt{evidence}: explanatory data.
-            \end{itemize}
-        \end{column}
-        \begin{column}{0.49\textwidth}
-            \begin{block}{Evidence example}
-                \footnotesize
-                \texttt{\{}\\
-                \texttt{\ \ "unique\_ports": [22, 80, 443],}\\
-                \texttt{\ \ "count": 20}\\
-                \texttt{\}}
-            \end{block}
-
-            \vspace{0.35em}
-            \begin{block}{Vai trò}
-                Evidence giúp người xem dashboard hiểu vì sao rule được kích hoạt, thay vì chỉ thấy một alert label.
-            \end{block}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{Sliding Window: nguyên lý}
-    \textbf{Idea}
-    \begin{itemize}
-        \item Mỗi source có một queue chứa recent events.
-        \item Khi event mới đến, hệ thống drop expired data.
-        \item Nếu count hoặc feature vượt threshold thì tạo alert.
-    \end{itemize}
-
-    \vspace{0.65em}
-    \textbf{Benefits}
-    \begin{itemize}
-        \item Dễ giải thích bằng evidence trong alert.
-        \item Memory cost giới hạn theo số source và time-window length.
-        \item Phù hợp để illustrate scan, flood và DNS tunneling.
-    \end{itemize}
-\end{frame}
-
-\begin{frame}{Sliding Window: timeline}
-    \centering
-    \resizebox{0.88\linewidth}{!}{%
-    \begin{tikzpicture}[x=1.0cm, y=0.85cm]
-        \draw[->, thick] (0,0) -- (8.2,0) node[right, font=\scriptsize] {time};
-        \foreach \x/\lab in {0/0,2/2,4/4,6/6,8/8}
-            \draw (\x,0.08) -- (\x,-0.08) node[below, font=\scriptsize] {\lab s};
-        \draw[detectblue, line width=2pt] (2,-0.35) -- (8,-0.35);
-        \node[font=\scriptsize, detectblue] at (5,-0.75) {current window};
-        \foreach \x in {0.7,1.2,2.3,2.8,3.5,4.2,5.0,5.4,6.1,6.7,7.2,7.7}
-            \fill[attackred] (\x,0.55) circle (2pt);
-        \node[box, text width=2.6cm] at (1.0,1.9) {\footnotesize Expired events are dropped};
-        \draw[dashedarrow] (1.0,1.55) -- (1.2,0.6);
-        \node[orangebox, text width=3.25cm] at (5.7,1.9) {\footnotesize Count events in window\\against rule threshold};
-        \draw[dashedarrow] (5.7,1.45) -- (5.4,0.6);
-    \end{tikzpicture}
-    }
-\end{frame}
-
-\begin{frame}{False Positive Reduction bằng Context Filtering}
+\begin{frame}{Signature engine dạng Suricata-style subset}
     \small
     \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.5\textwidth}
-            \textbf{Port scan}
-            \begin{itemize}
-                \item Chỉ đếm flag probe: \texttt{S}, \texttt{F}, NULL, \texttt{FPU}, \texttt{A}.
-                \item Không đếm RST, SYN-ACK, FIN-ACK vì thường là response packets.
-            \end{itemize}
+        \begin{column}{0.47\textwidth}
+            \textbf{Rule shape}
+            \begin{block}{Ví dụ}
+                \footnotesize
+                \texttt{alert http any any -> any 80}\\
+                \texttt{(msg:"sqlmap UA";}\\
+                \texttt{http.user\_agent;}\\
+                \texttt{content:"sqlmap"; nocase;}\\
+                \texttt{sid:1000002; rev:1;)}
+            \end{block}
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \textbf{ICMP flood}
+        \begin{column}{0.50\textwidth}
+            \textbf{Subset prototype hỗ trợ}
             \begin{itemize}
-                \item Chỉ đếm request-side: Echo, Timestamp, Address Mask Request.
-                \item Không đếm Echo Reply để tránh gắn nhầm flood source cho target.
+                \item Protocol: \texttt{ip}, \texttt{tcp}, \texttt{udp}, \texttt{icmp}, \texttt{dns}, \texttt{http}.
+                \item Option: \texttt{msg}, \texttt{sid}, \texttt{priority}, \texttt{content}, \texttt{pcre}, \texttt{nocase}.
+                \item Sticky buffer: \texttt{pkt\_data}, \texttt{dns.query}, \texttt{http.uri}, \texttt{http.user\_agent}, \texttt{http.host}.
+                \item Built-in RULE-004 dùng \texttt{dns.query} + \texttt{pcre} cho domain blacklist.
             \end{itemize}
-
-            \vspace{0.4em}
-            \textbf{Alert cooldown}
-            \begin{itemize}
-                \item Cùng một rule và cùng một key chỉ re-alert sau 5 giây.
-                \item Dashboard không bị ngập bởi duplicate alerts.
-            \end{itemize}
+            \begin{alertblock}{Chưa hỗ trợ đầy đủ}
+                \footnotesize \texttt{flow}, \texttt{depth/offset}, \texttt{distance/within}, \texttt{fast\_pattern}, \texttt{flowbits}, \texttt{byte\_test}, TCP stream inspection, \texttt{file\_data}.
+            \end{alertblock}
         \end{column}
     \end{columns}
-
-    \vspace{0.25cm}
-    \centering
-    \resizebox{0.82\linewidth}{!}{%
-    \begin{tikzpicture}[node distance=0.42cm and 0.55cm]
-        \node[redbox, minimum width=2.2cm] (packet) {Packet};
-        \node[bluebox, right=of packet, minimum width=2.2cm] (context) {Context filter};
-        \node[orangebox, right=of context, minimum width=2.2cm] (window) {Window count};
-        \node[greenbox, right=of window, minimum width=2.2cm] (alert) {Alert};
-        \draw[arrow] (packet) -- (context);
-        \draw[arrow] (context) -- (window);
-        \draw[arrow] (window) -- (alert);
-    \end{tikzpicture}
-    }
 \end{frame}
 
-\begin{frame}{Suricata-style Signature Engine Subset}
+\begin{frame}{Định dạng alert và evidence}
     \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.44\textwidth}
-            \textbf{Rule components}
+        \begin{column}{0.46\textwidth}
+            \textbf{Trường chính}
             \begin{itemize}
-                \item Header: action, protocol, IP, port, direction.
-                \item Options: \texttt{msg}, \texttt{sid}, \texttt{priority}, \texttt{content}, \texttt{pcre}.
-                \item Sticky buffers: \texttt{pkt\_data}, \texttt{raw\_data}, \texttt{dns.query}, HTTP fields.
+                \item \texttt{timestamp}
+                \item \texttt{rule\_id}
+                \item \texttt{attack\_type}
+                \item \texttt{detection\_method}
+                \item \texttt{severity}
+                \item \texttt{source\_ip}, \texttt{destination\_ip}
+                \item \texttt{description}
+                \item \texttt{evidence}
             \end{itemize}
         \end{column}
-        \begin{column}{0.54\textwidth}
-            \centering
-            \resizebox{\linewidth}{!}{%
-            \begin{tikzpicture}[node distance=0.42cm]
-                \node[redbox, text width=5.6cm] (text) {Rule text};
-                \node[bluebox, below=of text, text width=5.6cm] (parse) {Parse header + options};
-                \node[orangebox, below left=0.6cm and 0.15cm of parse, text width=2.35cm] (hdr) {Match protocol/IP/port};
-                \node[orangebox, below right=0.6cm and 0.15cm of parse, text width=2.35cm] (buf) {Select buffer};
-                \node[greenbox, below=1.45cm of parse, text width=5.6cm] (out) {Create Alert when all conditions match};
-                \draw[arrow] (text) -- (parse);
-                \draw[arrow] (parse) -- (hdr);
-                \draw[arrow] (parse) -- (buf);
-                \draw[arrow] (hdr) -- (out);
-                \draw[arrow] (buf) -- (out);
-            \end{tikzpicture}
-            }
+        \begin{column}{0.51\textwidth}
+            \begin{block}{Ví dụ evidence}
+                \footnotesize
+                \texttt{\{}\\
+                \texttt{\ \ "count": 20,}\\
+                \texttt{\ \ "unique\_ports": [21,22,80,...]}\\
+                \texttt{\}}
+            \end{block}
+            \begin{block}{Giá trị}
+                Evidence giúp giải thích vì sao alert xuất hiện, hỗ trợ người vận hành kiểm tra nhanh thay vì chỉ nhìn một nhãn tấn công.
+            \end{block}
         \end{column}
     \end{columns}
 \end{frame}
 
-\section{Demo và đánh giá}
+\section{Thử nghiệm và kết quả}
 
-\begin{frame}{Mô hình lab kiểm thử}
+\begin{frame}{7. Thử nghiệm và kết quả}
     \centering
     \begin{tikzpicture}[node distance=1.0cm and 2.2cm]
-        \node[redbox, minimum width=2.6cm, minimum height=1.1cm] (kali) {Kali Linux\\\footnotesize attacker};
-        \node[greenbox, right=of kali, minimum width=2.6cm, minimum height=1.1cm] (target) {Target VM\\\footnotesize HTTP service};
-        \node[bluebox, below=1.25cm of $(kali)!0.5!(target)$, minimum width=3.2cm, minimum height=1.1cm] (host) {Host Machine\\\footnotesize NIDS + Dashboard};
-        \node[orangebox, below=0.95cm of host, minimum width=3.2cm] (json) {alerts.jsonl};
+        \node[redbox, minimum width=2.75cm, minimum height=1.1cm] (kali) {Kali Linux\\\footnotesize attacker};
+        \node[greenbox, right=of kali, minimum width=2.75cm, minimum height=1.1cm] (target) {Target VM\\\footnotesize HTTP service};
+        \node[bluebox, below=1.25cm of $(kali)!0.5!(target)$, minimum width=3.55cm, minimum height=1.1cm] (host) {Host Machine\\\footnotesize NIDS + Dashboard};
+        \node[orangebox, below=0.95cm of host, minimum width=3.55cm] (json) {\texttt{data/alerts.jsonl}};
 
-        \draw[<->, thick, draw=attackred!80] (kali) -- node[above, font=\footnotesize] {nmap, hping3, dig, curl} (target);
+        \draw[<->, thick, draw=attackred!80] (kali) -- node[above, font=\footnotesize] {\texttt{nmap}, \texttt{hping3}, \texttt{dig}, \texttt{curl}} (target);
         \draw[dashedarrow] ($(kali)!0.5!(target)$) -- node[right, font=\footnotesize] {sniff interface} (host);
         \draw[arrow] (host) -- (json);
     \end{tikzpicture}
 
-    \vspace{0.6cm}
-    \begin{block}{Demo objective}
-        Chứng minh cùng một pipeline có thể detection cả anomaly theo tần suất và payload khớp signature, sau đó hiển thị thống kê alert trên dashboard.
+    \vspace{0.45cm}
+    \begin{block}{Phạm vi thử nghiệm}
+        Các lệnh tạo traffic chỉ chạy trong môi trường lab/VM cô lập và có quyền. NIDS sniff traffic trên interface mirror/bridge trong lab.
     \end{block}
 \end{frame}
 
-\begin{frame}{Demo scenarios and corresponding rules}
-    \centering
-    \renewcommand{\arraystretch}{1.25}
-    \begin{tabular}{p{3.0cm}p{4.6cm}p{3.5cm}p{2.1cm}}
+\begin{frame}{Kịch bản tấn công trong script}
+    \small
+    \renewcommand{\arraystretch}{1.18}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{p{2.8cm}p{4.4cm}p{3.5cm}p{2.1cm}}
         \toprule
-        \textbf{Scenario} & \textbf{Attack mechanism} & \textbf{Detection signal} & \textbf{Rule} \\
+        \textbf{Scenario} & \textbf{Lệnh/công cụ} & \textbf{Detection signal} & \textbf{Rule} \\
         \midrule
-        Port scan & Nmap probes multiple TCP ports & $\geq$ 20 ports / 10s & RULE-001 \\
-        ICMP flood & Many Echo Requests & $\geq$ 100 packets / 10s & RULE-002 \\
-        SYN flood & Many TCP SYN packets to port 80 & $\geq$ 100 SYN / 10s & RULE-003 \\
-        Suspicious DNS & Domain query in blacklist & exact/subdomain match & RULE-004 \\
-        DNS tunneling & Long label, high entropy & $\geq$ 5 queries / 30s & RULE-005 \\
-        HTTP attack & URI/User-Agent/body contains malicious pattern & content match & custom.rules \\
+        Port scan & \texttt{nmap -sS} quét 25 port & $\geq 20$ unique ports / 10s & RULE-001 \\
+        ICMP flood & \texttt{hping3 --icmp --fast -c 120 <target>} & $\geq 100$ ICMP requests / 10s & RULE-002 \\
+        SYN flood & \texttt{hping3 -S -p 80 --fast -c 120 <target>} & $\geq 100$ SYN without ACK / 10s & RULE-003 \\
+        Suspicious DNS & \texttt{dig} domain blacklist mẫu & DNS signature match & RULE-004 \\
+        DNS tunneling & \texttt{dig} long high-entropy labels & $\geq 5$ suspicious queries / 30s & RULE-005 \\
+        HTTP signature & \texttt{curl} SQLi/sqlmap payload & Suricata-style subset content match & custom.rules \\
         \bottomrule
     \end{tabular}
+    }
+    \vspace{0.35em}
+    \footnotesize Các lệnh flood chỉ dùng trong lab có kiểm soát.
 \end{frame}
 
-\begin{frame}{Alert result visualization}
-    \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.53\textwidth}
-            \centering
-            \begin{tikzpicture}[x=0.78cm, y=0.45cm]
-                \draw[->, thick] (0,0) -- (0,6.2) node[above, font=\scriptsize] {alert categories};
-                \draw[->, thick] (0,0) -- (8.5,0);
-                \foreach \name/\x/\h/\col in {Scan/0.8/4.0/detectblue,ICMP/2.0/3.5/attackred,SYN/3.2/3.5/attackred,DNS/4.4/2.8/warnorange,Tunnel/5.6/2.4/warnorange,HTTP/6.8/3.2/goodgreen} {
-                    \fill[\col!70] (\x,0) rectangle +(0.75,\h);
-                    \node[rotate=35, anchor=east, font=\scriptsize] at (\x+0.55,-0.15) {\name};
-                }
-                \node[box, text width=3.4cm] at (4.8,5.35) {\footnotesize Dashboard tổng hợp theo severity, source IP và danh sách alert gần nhất.};
-            \end{tikzpicture}
-        \end{column}
-        \begin{column}{0.45\textwidth}
-            \textbf{Kết quả mong đợi trong lab}
-            \begin{itemize}
-                \item Terminal NIDS prints alerts in real time.
-                \item File JSONL append từng alert độc lập.
-                \item Dashboard hiển thị tổng alert, severity, top source IP và alert gần nhất.
-            \end{itemize}
+\begin{frame}{Kết quả thực nghiệm cần báo cáo}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.12}
+    \resizebox{\linewidth}{!}{%
+    \begin{tabular}{p{2.7cm}p{2.55cm}p{2.75cm}p{4.0cm}p{3.4cm}}
+        \toprule
+        \textbf{Scenario} & \textbf{Expected alert} & \textbf{Observed alert} & \textbf{Evidence chính} & \textbf{Ghi chú} \\
+        \midrule
+        Port scan & RULE-001 & TODO: điền số thực tế & unique ports, count & Trigger khi $\geq 20$ ports/10s \\
+        ICMP flood & RULE-002 & TODO: điền số thực tế & icmp count & Trigger khi $\geq 100$ requests/10s \\
+        SYN flood & RULE-003 & TODO: điền số thực tế & syn count, dst\_port & SYN without ACK \\
+        Suspicious DNS & RULE-004 & TODO: điền số thực tế & DNS signature match & domain blacklist \\
+        DNS tunneling & RULE-005 & TODO: điền số thực tế & entropy, label length, count & $\geq 5$ suspicious queries/30s \\
+        HTTP signature & custom.rules & TODO: điền số thực tế & matched content/User-Agent & Suricata-style subset \\
+        \bottomrule
+    \end{tabular}
+    }
 
-            \vspace{0.5em}
-            \textbf{Ý nghĩa đánh giá}
-            \begin{itemize}
-                \item Kiểm chứng đủ hai lớp detection.
-                \item Chứng minh data đi hết pipeline từ capture tới dashboard.
-            \end{itemize}
-        \end{column}
-    \end{columns}
+    \vspace{0.45cm}
+    \begin{alertblock}{TODO trước khi nộp/bảo vệ}
+        Chạy lại script demo trong lab và điền số alert thực tế vào bảng; không tự bịa số liệu.
+    \end{alertblock}
 \end{frame}
 
-\begin{frame}{Technical evaluation}
+\section{Thảo luận}
+
+\begin{frame}{8. Thảo luận: điểm đạt được và hạn chế}
+    \small
     \begin{columns}[T,onlytextwidth]
         \begin{column}{0.49\textwidth}
             \begin{block}{Điểm đạt được}
                 \begin{itemize}
-                    \item Kiến trúc module rõ: capture, parser, engine, storage, dashboard.
-                    \item Rule behavior giải thích được bằng threshold và evidence.
-                    \item Rule signature bám theo cú pháp Suricata quen thuộc.
-                    \item Có unit test cho parser/rule engine và script demo.
+                    \item Pipeline module rõ ràng: capture, parser, engine, storage, dashboard.
+                    \item Behavior rules có threshold và evidence dễ giải thích.
+                    \item Signature engine dùng cú pháp Suricata-style subset.
+                    \item Có script demo và unit test cho rule engine.
                 \end{itemize}
             \end{block}
         \end{column}
         \begin{column}{0.49\textwidth}
             \begin{alertblock}{Hạn chế}
                 \begin{itemize}
-                    \item Không phân tích payload trong TLS/HTTPS.
-                    \item Payload chia nhỏ qua nhiều TCP segment có thể bị bỏ sót.
-                    \item Chưa đo false positive/false negative trên dataset lớn.
-                    \item Python + Scapy phù hợp demo hơn môi trường tốc độ cao.
+                    \item Chưa reassemble TCP stream; payload chia nhỏ có thể bị bỏ sót.
+                    \item Chưa xử lý IP fragmentation, segmentation/out-of-order.
+                    \item Không phân tích TLS/HTTPS, DoH, DoT nếu thiếu visibility.
+                    \item Payload encode/obfuscate có thể evasion.
+                    \item SPAN/TAP có thể mất packet hoặc asymmetric routing.
+                    \item Threshold tĩnh, chưa học baseline theo từng môi trường.
                 \end{itemize}
             \end{alertblock}
         \end{column}
     \end{columns}
 \end{frame}
 
+\begin{frame}{Hướng mở rộng}
+    \begin{itemize}
+        \item Bổ sung IP defragmentation và TCP stream reassembly.
+        \item Bổ sung stateful protocol analysis cho TCP/HTTP/DNS.
+        \item Thêm whitelist/baseline học từ traffic bình thường để giảm false positive.
+        \item Thêm correlation engine: gom port scan, flood, HTTP SQLi thành incident có timeline.
+        \item Đánh giá trên PCAP lớn/dataset công khai và báo cáo precision, recall, false positive rate.
+    \end{itemize}
+\end{frame}
+
 \section{Kết luận}
 
-\begin{frame}{Kết luận và hướng phát triển}
+\begin{frame}{9. Kết luận}
     \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.48\textwidth}
+        \begin{column}{0.50\textwidth}
             \textbf{Kết luận}
             \begin{itemize}
-                \item Đồ án illustrates một NIDS hoàn chỉnh ở mức học tập.
-                \item Hai cơ chế detection bổ sung cho nhau: behavior detection anomaly, signature detection mẫu đã biết.
-                \item Dashboard giúp biến alert thô thành thông tin quan sát được.
+                \item Project mô phỏng được luồng hoạt động cốt lõi của một NIDS ở mức học tập.
+                \item Behavior-based detection và signature-based detection bổ sung cho nhau.
+                \item Dashboard biến alert thô thành thông tin dễ quan sát, phục vụ demo và đánh giá.
             \end{itemize}
         \end{column}
-        \begin{column}{0.5\textwidth}
-            \textbf{Hướng phát triển}
-            \begin{itemize}
-                \item TCP stream reassembly để so khớp payload theo phiên.
-                \item Mở rộng tương thích Suricata rule.
-                \item Cấu hình threshold/rule qua YAML hoặc dashboard.
-                \item Đo hiệu năng trên PCAP lớn và đánh giá false positive.
-                \item Tích hợp webhook hoặc danh sách chặn trong lab.
-            \end{itemize}
+        \begin{column}{0.46\textwidth}
+            \begin{block}{Thông điệp chính}
+                Một hệ thống phát hiện xâm nhập mạng hiệu quả cần vừa có rule rõ ràng cho mẫu đã biết, vừa có cơ chế quan sát hành vi để nhận diện dấu hiệu bất thường.
+            \end{block}
         \end{column}
     \end{columns}
 \end{frame}
-
-\hustcontactpage{\hfill THÔNG TIN ĐỒ ÁN \hfill}{
-    \textbf{Đề tài:} Các cơ chế detection xâm nhập mạng\\
-    \textbf{Học phần:} IT4015 - Nhập môn An toàn thông tin\\
-    \textbf{Giảng viên hướng dẫn:} PGS. TS. Nguyễn Linh Giang\\[0.35cm]
-    \textbf{Nhóm sinh viên:}\\
-    Nguyễn Đình Tuấn Minh - 20230048\\
-    Vũ Đức Tâm - 20230064\\
-    Nguyễn Gia Khánh - 202416803\\
-    Nguyễn Đăng Cao Tuấn - 202400119\\[0.35cm]
-    \textit{Xin chân thành cảm ơn thầy và các bạn đã lắng nghe!}
-}
 
 \useStyleLogoOnly
 \setbeamertemplate{bibliography item}[text]
@@ -801,11 +568,15 @@
         \bibitem{nmap}
         Gordon Lyon, \emph{Nmap Network Scanning}.
 
-        \bibitem{project}
-        Nhóm sinh viên, \emph{Báo cáo đồ án: Các cơ chế detection xâm nhập mạng}, 2026.
+        \bibitem{snort}
+        Snort Project, \emph{Snort 3 Rule Writing Guide}.
+
+        \bibitem{nist}
+        NIST SP 800-94, \emph{Guide to Intrusion Detection and Prevention Systems}.
+
+        \bibitem{mitre}
+        The MITRE Corporation, \emph{MITRE ATT\&CK Enterprise Matrix}.
     \end{thebibliography}
 \end{frame}
-
-\hustthankyou
 
 \end{document}

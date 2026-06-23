@@ -14,6 +14,7 @@ def event(
     dst_port: int | None = None,
     protocol: str = "TCP",
     tcp_flags: str | None = None,
+    icmp_type: int | None = None,
     dns_query: str | None = None,
     payload_text: str | None = None,
 ) -> PacketEvent:
@@ -26,6 +27,7 @@ def event(
         protocol=protocol,
         length=64,
         tcp_flags=tcp_flags,
+        icmp_type=icmp_type,
         dns_query=dns_query,
         payload_text=payload_text,
     )
@@ -39,10 +41,30 @@ class RuleTests(unittest.TestCase):
 
         alerts = []
         for offset, port in enumerate([22, 80, 443]):
-            alerts.extend(rules.evaluate(event(timestamp=float(offset), dst_port=port)))
+            alerts.extend(
+                rules.evaluate(
+                    event(timestamp=float(offset), dst_port=port, tcp_flags="S")
+                )
+            )
 
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0].attack_type, "Port Scan")
+        self.assertEqual(alerts[0].detection_method, "behavior")
+
+    def test_ack_scan_is_not_counted_without_state_tracking(self) -> None:
+        rules = SlidingWindowRules(
+            RuleConfig(port_scan_window_seconds=10, port_scan_unique_ports=3)
+        )
+
+        alerts = []
+        for offset, port in enumerate([22, 80, 443]):
+            alerts.extend(
+                rules.evaluate(
+                    event(timestamp=float(offset), dst_port=port, tcp_flags="A")
+                )
+            )
+
+        self.assertEqual(alerts, [])
 
     def test_icmp_flood_alerts_after_packet_threshold(self) -> None:
         rules = SlidingWindowRules(
@@ -52,11 +74,14 @@ class RuleTests(unittest.TestCase):
         alerts = []
         for offset in range(3):
             alerts.extend(
-                rules.evaluate(event(timestamp=float(offset), protocol="ICMP"))
+                rules.evaluate(
+                    event(timestamp=float(offset), protocol="ICMP", icmp_type=8)
+                )
             )
 
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0].attack_type, "ICMP Ping Flood")
+        self.assertEqual(alerts[0].detection_method, "behavior")
 
     def test_syn_flood_alerts_after_syn_threshold(self) -> None:
         rules = SlidingWindowRules(
@@ -73,10 +98,27 @@ class RuleTests(unittest.TestCase):
 
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0].attack_type, "TCP SYN Flood")
+        self.assertEqual(alerts[0].detection_method, "behavior")
+        self.assertEqual(alerts[0].evidence["dst_port"], 80)
+
+    def test_syn_ack_packets_do_not_trigger_syn_flood(self) -> None:
+        rules = SlidingWindowRules(
+            RuleConfig(syn_flood_window_seconds=10, syn_flood_syn_count=3)
+        )
+
+        alerts = []
+        for offset in range(3):
+            alerts.extend(
+                rules.evaluate(
+                    event(timestamp=float(offset), dst_port=80, tcp_flags="SA")
+                )
+            )
+
+        self.assertEqual(alerts, [])
 
     def test_suspicious_dns_query_alerts(self) -> None:
         rules = SlidingWindowRules(
-            RuleConfig(suspicious_domains={"malware.test"})
+            RuleConfig(suspicious_domains={"chatgpt.com"})
         )
 
         alerts = rules.evaluate(
@@ -84,12 +126,31 @@ class RuleTests(unittest.TestCase):
                 timestamp=1.0,
                 protocol="DNS",
                 dst_port=53,
-                dns_query="dropper.malware.test",
+                dns_query="api.chatgpt.com",
             )
         )
 
         self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0].rule_id, "RULE-004")
         self.assertEqual(alerts[0].attack_type, "Suspicious DNS Query")
+        self.assertEqual(alerts[0].detection_method, "signature")
+        self.assertEqual(alerts[0].evidence["query"], "api.chatgpt.com")
+
+    def test_suspicious_dns_signature_uses_domain_boundary(self) -> None:
+        rules = SlidingWindowRules(
+            RuleConfig(suspicious_domains={"chatgpt.com"})
+        )
+
+        alerts = rules.evaluate(
+            event(
+                timestamp=1.0,
+                protocol="DNS",
+                dst_port=53,
+                dns_query="notchatgpt.com",
+            )
+        )
+
+        self.assertEqual(alerts, [])
 
     def test_dns_tunneling_suspicion_alerts_after_threshold(self) -> None:
         rules = SlidingWindowRules(
@@ -117,7 +178,13 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0].rule_id, "RULE-005")
         self.assertEqual(alerts[0].attack_type, "DNS Tunneling Suspicion")
+        self.assertEqual(alerts[0].detection_method, "anomaly")
         self.assertEqual(alerts[0].evidence["suspicious_queries"], 2)
+        self.assertEqual(alerts[0].evidence["suspicious_query_count"], 2)
+        self.assertEqual(alerts[0].evidence["window_seconds"], 10)
+        self.assertGreaterEqual(alerts[0].evidence["query_length"], 42)
+        self.assertGreaterEqual(alerts[0].evidence["max_label_length"], 42)
+        self.assertIn("max_label_entropy", alerts[0].evidence)
         self.assertIn("long_label", alerts[0].evidence["reason_counts"])
 
     def test_normal_dns_queries_do_not_trigger_tunneling_rule(self) -> None:
@@ -168,6 +235,7 @@ class RuleTests(unittest.TestCase):
 
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts[0].rule_id, "SIG-TEST")
+        self.assertEqual(alerts[0].detection_method, "signature")
 
     def test_signature_can_match_specific_destination_port(self) -> None:
         rules = SlidingWindowRules(

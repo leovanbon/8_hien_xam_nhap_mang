@@ -28,6 +28,14 @@ def default_suricata_rules() -> tuple[str, ...]:
     return ()
 
 
+def default_suspicious_domains() -> set[str]:
+    return {
+        "chatgpt.com",
+        "gemini.google.com",
+        "claude.ai",
+    }
+
+
 @dataclass(frozen=True)
 class RuleConfig:
     port_scan_window_seconds: int = 10
@@ -42,12 +50,6 @@ class RuleConfig:
     dns_tunnel_min_label_length: int = 45
     dns_tunnel_min_label_entropy: float = 3.8
     dns_tunnel_entropy_label_length: int = 24
-    suspicious_domains: set[str] = field(
-        default_factory=lambda: {
-            "malware.test",
-            "phishing.test",
-            "bad-domain.example",
-        }
-    )
+    suspicious_domains: set[str] = field(default_factory=default_suspicious_domains)
     signatures: tuple[Signature, ...] = field(default_factory=default_signatures)
     suricata_rules: tuple[str, ...] = field(default_factory=default_suricata_rules)

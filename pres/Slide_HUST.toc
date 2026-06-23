@@ -1,6 +1,9 @@
-\beamer@sectionintoc {1}{Bài toán và mục tiêu}{4}{0}{1}
-\beamer@sectionintoc {2}{Kiến trúc hệ thống}{6}{0}{2}
-\beamer@sectionintoc {3}{Attack and Detection Mechanisms}{11}{0}{3}
-\beamer@sectionintoc {4}{IDS Design Simulation}{19}{0}{4}
-\beamer@sectionintoc {5}{Demo và đánh giá}{27}{0}{5}
-\beamer@sectionintoc {6}{Kết luận}{31}{0}{6}
+\beamer@sectionintoc {1}{Giới thiệu}{3}{0}{1}
+\beamer@sectionintoc {2}{Phát biểu bài toán}{5}{0}{2}
+\beamer@sectionintoc {3}{Mục tiêu}{6}{0}{3}
+\beamer@sectionintoc {4}{Phương pháp tiếp cận}{7}{0}{4}
+\beamer@sectionintoc {5}{Kiến trúc hệ thống}{9}{0}{5}
+\beamer@sectionintoc {6}{Detection Engine}{12}{0}{6}
+\beamer@sectionintoc {7}{Thử nghiệm và kết quả}{18}{0}{7}
+\beamer@sectionintoc {8}{Thảo luận}{21}{0}{8}
+\beamer@sectionintoc {9}{Kết luận}{23}{0}{9}

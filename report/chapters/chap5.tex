@@ -6,8 +6,9 @@
 \begin{itemize}
     \item Đọc lưu lượng từ PCAP hoặc live interface bằng Scapy.
     \item Chuẩn hóa packet thành cấu trúc \texttt{PacketEvent}.
-    \item Phát hiện hành vi bằng cửa sổ trượt thời gian.
-    \item Phân tích một tập con luật Suricata để phát hiện chữ ký trong HTTP, DNS và payload.
+    \item Phát hiện hành vi/anomaly bằng cửa sổ trượt thời gian với các ngưỡng lab/demo.
+    \item Phân tích một \textit{Suricata-style subset} để phát hiện chữ ký trong HTTP, DNS và payload.
+    \item Chuyển rule khớp domain blacklist thành luật chữ ký DNS mặc định trong signature engine, tách khỏi sliding-window rules.
     \item Ghi cảnh báo ra JSON Lines và hiển thị qua dashboard Flask.
     \item Có kịch bản demo để kiểm tra các rule chính trong môi trường lab.
 \end{itemize}
@@ -21,17 +22,23 @@ Hệ thống hiện tại vẫn có một số hạn chế kỹ thuật:
     \item \textbf{Chỉ phát hiện, chưa ngăn chặn:} hệ thống không chặn gói tin, không reset kết nối và không tự động cập nhật tường lửa.
     \item \textbf{Chưa xử lý lưu lượng mã hóa:} nội dung HTTPS/TLS không thể được kiểm tra bằng chữ ký nếu không có cơ chế giải mã hợp lệ.
     \item \textbf{Chưa tái tạo TCP stream đầy đủ:} payload bị chia nhỏ qua nhiều gói tin có thể làm giảm hiệu quả của signature matching.
+    \item \textbf{Chưa xử lý đầy đủ fragmentation/segmentation:} IP fragmentation, TCP segmentation và out-of-order packets có thể làm sai lệch dữ liệu đầu vào của rule engine.
+    \item \textbf{Dễ bị evasion với payload biến đổi:} payload bị encode, obfuscate hoặc chia nhỏ có thể vượt qua rule content đơn giản.
+    \item \textbf{Phụ thuộc visibility của điểm giám sát:} SPAN/TAP có thể mất packet hoặc không nhìn thấy đủ hai chiều lưu lượng khi có asymmetric routing.
     \item \textbf{Hiệu năng còn giới hạn:} Python và Scapy phù hợp cho demo, nhưng chưa phù hợp với môi trường có lưu lượng lớn nếu không tối ưu thêm.
-    \item \textbf{Phụ thuộc vào ngưỡng và luật:} chất lượng cảnh báo phụ thuộc vào cấu hình threshold và độ đầy đủ của tập luật chữ ký.
+    \item \textbf{Phụ thuộc vào ngưỡng và luật:} chất lượng cảnh báo phụ thuộc vào cấu hình threshold, baseline từng mạng và độ đầy đủ của tập luật chữ ký.
 \end{itemize}
 
 \section{Hướng phát triển}
 Các hướng cải tiến phù hợp với kiến trúc hiện tại gồm:
 
 \begin{itemize}
-    \item Bổ sung TCP stream reassembly để kiểm tra payload ở mức phiên thay vì từng gói riêng lẻ.
-    \item Mở rộng parser HTTP/DNS và tăng mức tương thích với cú pháp Suricata.
+    \item Bổ sung IP defragmentation và TCP stream reassembly để kiểm tra payload ở mức phiên thay vì từng gói riêng lẻ.
+    \item Bổ sung stateful protocol analysis cho TCP/HTTP/DNS và mở rộng parser rule theo hướng Snort/Suricata-like subset rõ ràng hơn.
+    \item Thêm whitelist/baseline học từ traffic bình thường để giảm false positive.
+    \item Thêm correlation engine để gom nhiều alert như port scan, flood hoặc HTTP SQLi thành incident có timeline.
     \item Thêm cơ chế cấu hình rule và threshold qua tệp YAML hoặc giao diện dashboard.
+    \item Đánh giá trên PCAP lớn hoặc dataset công khai và báo cáo precision, recall, false positive rate.
     \item Đo hiệu năng trên PCAP lớn và tối ưu luồng xử lý để giảm packet drop.
     \item Tích hợp phản ứng bán tự động như xuất IOC, webhook hoặc cập nhật danh sách chặn cho firewall trong môi trường lab.
     \item Xây dựng bộ kiểm thử với cả traffic bình thường và traffic tấn công để đánh giá false positive/false negative rõ ràng hơn.

@@ -2,26 +2,28 @@
 
 This project is a small Network Intrusion Detection System written in Python.
 It can read traffic from a PCAP file or a live network interface, normalize
-packets into simple event objects, evaluate behavior rules and Suricata-style
-content rules, write alerts to JSONL, and show the results in a Flask dashboard.
+packets into simple event objects, evaluate behavior/anomaly rules and a
+Suricata-style subset of content rules, write alerts to JSONL, and show the
+results in a Flask dashboard.
 
 The code is intentionally compact so it can be read as a learning project. It
-does not try to replace Suricata, but the rule engine follows Suricata's main
-ideas closely enough to make common rule syntax familiar.
+does not try to replace Suricata. The rule engine is a prototype
+Snort/Suricata-like rule syntax subset, not a production-compatible
+implementation.
 
 ## What It Does
 
 - Reads packets from a PCAP file or captures live traffic with Scapy.
 - Extracts normalized metadata such as IPs, ports, protocol, TCP flags, DNS
   query names, raw payload text, and common HTTP request fields.
-- Detects behavior patterns:
+- Detects behavior, anomaly, and signature patterns:
   - TCP port scans
   - ICMP ping floods
-  - TCP SYN floods
-  - Suspicious DNS domains
+  - TCP SYN floods using SYN packets without ACK
+  - Suspicious DNS domains through built-in DNS signature rules
   - DNS tunneling suspicion
-- Parses and evaluates user-provided Suricata-style rules for common payload,
-  HTTP, and DNS signatures.
+- Parses and evaluates user-provided Suricata-style subset rules for common
+  payload, HTTP, and DNS signatures.
 - Stores alerts as newline-delimited JSON in `data/alerts.jsonl` by default.
 - Shows alert counts, severity counts, top source IPs, and recent alerts in a
   Flask dashboard.
@@ -112,7 +114,7 @@ requires elevated privileges because the process needs access to raw packets.
 │   ├── engine.py            # NIDS orchestration and counters
 │   ├── models.py            # PacketEvent and Alert dataclasses
 │   ├── parser.py            # Scapy packet normalization
-│   ├── rules.py             # Behavior rules and Suricata-style rule engine
+│   ├── rules.py             # Behavior rules and Suricata-style subset engine
 │   └── storage.py           # JSONL alert storage
 ├── dashboard/
 │   ├── README.md            # Dashboard usage and data expectations
@@ -133,8 +135,8 @@ requires elevated privileges because the process needs access to raw packets.
 3. `packet_to_event` converts supported packets into a `PacketEvent`.
 4. `NIDSEngine.process_event` updates counters and sends the event to
    `SlidingWindowRules.evaluate`.
-5. `SlidingWindowRules` runs behavior detections, then the Suricata-style rule
-   engine.
+5. `SlidingWindowRules` runs behavior/anomaly detections, then the
+   Suricata-style subset rule engine.
 6. Matching rules create `Alert` objects.
 7. `AlertStore` appends each alert to JSONL.
 8. `dashboard/app.py` reads the JSONL file and renders summary metrics plus the
@@ -146,26 +148,32 @@ The rule engine has two layers:
 
 - Behavior detectors for stateful traffic patterns such as floods and port
   scans.
-- A Suricata-style parser and matcher for signature rules.
+- A Suricata-style subset parser and matcher for signature rules.
 
-Signature rules are intentionally empty by default. Suricata-style rule text can
-be passed through `RuleConfig.suricata_rules`, which makes it possible to keep
-behavior detections enabled while loading a separate signature ruleset.
+The built-in suspicious DNS blacklist is compiled into Suricata-style subset
+signature rules. Additional Suricata-style subset rule text can be passed
+through `RuleConfig.suricata_rules`, which makes it possible to keep behavior
+detections enabled while loading a separate signature ruleset.
 
-### Behavior Rule Defaults
+### Detection Rule Defaults
 
-The behavior rules are active even when no signature rules are loaded:
+The built-in demo thresholds are active even when no custom signature rules are
+loaded. They are lab/demo values, not production thresholds:
 
 - `RULE-001` Port Scan: 20 unique TCP destination ports from one source in 10
-  seconds.
-- `RULE-002` ICMP Ping Flood: 100 ICMP packets from one source in 10 seconds.
-- `RULE-003` TCP SYN Flood: 100 SYN packets from one source in 10 seconds.
-- `RULE-004` Suspicious DNS Query: exact or subdomain match against
-  `malware.test`, `phishing.test`, or `bad-domain.example`.
+  seconds (`detection_method: behavior`).
+- `RULE-002` ICMP Ping Flood: 100 request-side ICMP packets from one source in
+  10 seconds (`detection_method: behavior`).
+- `RULE-003` TCP SYN Flood: 100 TCP SYN packets without ACK from one source to
+  one destination service in 10 seconds (`detection_method: behavior`).
+- `RULE-004` Suspicious DNS Query: DNS signature exact or subdomain match
+  against `chatgpt.com`, `gemini.google.com`, or `claude.ai`
+  (`detection_method: signature`).
 - `RULE-005` DNS Tunneling Suspicion: 5 suspicious DNS queries from one source
   in 30 seconds. A DNS query is suspicious if it has a query name of at least
   100 characters, a label of at least 45 characters, or a label of at least 24
-  characters with Shannon entropy of at least 3.8.
+  characters with Shannon entropy of at least 3.8
+  (`detection_method: anomaly`).
 
 Example:
 
@@ -183,7 +191,7 @@ rules = SlidingWindowRules(
 )
 ```
 
-Supported Suricata-style rule shape:
+Supported Suricata-style subset rule shape:
 
 ```text
 action protocol src_ip src_port -> dst_ip dst_port (option:value; keyword;)
@@ -200,7 +208,7 @@ Supported header pieces:
 - Ports: `any`, single ports, ranges such as `1000:2000`, open ranges such as
   `:1024`, simple negation with `!`, and simple bracket lists
 
-Supported options:
+Prototype-supported options:
 
 - `msg`
 - `sid`
@@ -227,7 +235,9 @@ Supported options:
 
 This project currently treats `fast_pattern` as rule metadata. It records the
 keyword and exposes it in alert evidence, but it does not build a multi-pattern
-prefilter like Suricata does.
+prefilter like Suricata does. It also does not fully support `flow`,
+`depth/offset`, `distance/within`, `flowbits`, `byte_test`, TCP stream
+inspection, or `file_data`.
 
 ## Alert Format
 
@@ -236,6 +246,7 @@ Alerts are written as JSON objects, one per line:
 ```json
 {
   "attack_type": "HTTP SQLi",
+  "detection_method": "signature",
   "description": "10.0.0.5 matched Suricata rule 900002: HTTP SQLi",
   "destination_ip": "192.168.1.80",
   "evidence": {
@@ -260,12 +271,31 @@ Alerts are written as JSON objects, one per line:
 }
 ```
 
+Built-in rule `detection_method` values are `behavior`, `ioc`, and `anomaly`.
+Rules loaded through `RuleConfig.suricata_rules` use `signature`.
+
 `priority` maps to severity:
 
 - `1`: `High`
 - `2`: `Medium`
 - `3`: `Low`
 - Missing or other values: `Informational`
+
+## Current Limitations
+
+- No IP defragmentation, TCP stream reassembly, or out-of-order segment
+  handling.
+- Payload split across multiple TCP segments, encoded, or obfuscated can evade
+  simple content matching.
+- TLS/HTTPS, DoH, and DoT contents are not visible unless the lab provides
+  appropriate decrypted visibility.
+- SPAN/TAP capture can lose packets or miss one side of asymmetric routing in
+  real networks.
+- Demo thresholds must be tuned against a real network baseline before any
+  production-like use.
+- DNS tunneling heuristics can false positive on legitimate CDN, tracking, DKIM,
+  ACME challenge, or service-discovery domains; use whitelist, qtype,
+  NXDOMAIN-rate, unique-subdomain, and reputation context in real deployments.
 
 ## Testing
 

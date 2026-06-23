@@ -54,10 +54,10 @@ Theo nguồn dữ liệu giám sát, IDS có thể được chia thành hai nhó
 
 Hệ thống trong đồ án là một NIDS dạng thụ động: đọc PCAP hoặc sniff interface, phân tích gói tin và ghi cảnh báo ra tệp JSONL.
 
-\section{Phát hiện theo chữ ký}
-Phát hiện theo chữ ký (Signature-based Detection) so khớp lưu lượng với các mẫu đã biết. Mẫu có thể là chuỗi trong payload, biểu thức chính quy, trường HTTP, truy vấn DNS hoặc tổ hợp điều kiện trong header gói tin. Cách tiếp cận này phù hợp để nhận diện các kỹ thuật tấn công đã biết như SQL Injection, công cụ quét tự động hoặc payload có cấu trúc đặc trưng.
+\section{Phát hiện theo chữ ký và IOC}
+Phát hiện theo chữ ký (Signature-based Detection) so khớp lưu lượng với các mẫu đã biết. Mẫu có thể là chuỗi trong payload, biểu thức chính quy, trường HTTP, truy vấn DNS, User-Agent, domain trong blacklist/IOC hoặc tổ hợp điều kiện trong header gói tin. Cách tiếp cận này phù hợp để nhận diện các kỹ thuật tấn công đã biết như SQL Injection, công cụ quét tự động, payload có cấu trúc đặc trưng hoặc tên miền độc hại đã được ghi nhận.
 
-Một luật Suricata thường gồm hai phần:
+Một luật Suricata/Snort-like thường gồm hai phần:
 
 \begin{verbatim}
 alert http any any -> any 80 (msg:"sqlmap User-Agent";
@@ -83,7 +83,7 @@ Các ví dụ được triển khai:
     \item Các truy vấn DNS có nhãn quá dài hoặc entropy cao có thể là dấu hiệu DNS tunneling.
 \end{itemize}
 
-Cách tiếp cận này không cần biết trước chính xác payload tấn công, nhưng phụ thuộc nhiều vào ngưỡng cấu hình. Ngưỡng quá thấp dễ tạo cảnh báo sai; ngưỡng quá cao có thể bỏ sót các cuộc tấn công chậm.
+Cách tiếp cận này không cần biết trước chính xác payload tấn công, nhưng phụ thuộc nhiều vào ngưỡng cấu hình. Trong prototype, các ngưỡng như 20 cổng/10 giây hoặc 100 gói/10 giây được chọn để phục vụ demo trong lab; khi áp dụng vào mạng thực tế cần đo baseline lưu lượng bình thường để giảm false positive. Ngưỡng quá thấp dễ tạo cảnh báo sai; ngưỡng quá cao có thể bỏ sót các cuộc tấn công chậm.
 
 \section{Các kiểu tấn công trong phạm vi đồ án}
 Báo cáo tập trung vào các tình huống có thể kiểm thử trực tiếp bằng hệ thống đã xây dựng.
@@ -95,7 +95,7 @@ Quét cổng là bước thăm dò nhằm xác định dịch vụ đang mở tr
 ICMP Flood tạo lượng lớn gói Echo Request để tiêu tốn băng thông hoặc tài nguyên xử lý. SYN Flood tạo nhiều yêu cầu TCP SYN chưa hoàn tất kết nối. Cả hai đều được phát hiện bằng bộ đếm theo nguồn trong cửa sổ thời gian.
 
 \subsection{DNS độc hại và DNS Tunneling}
-DNS có thể bị lợi dụng để truy vấn tên miền độc hại hoặc truyền dữ liệu ra ngoài thông qua các nhãn dài, khó đọc, entropy cao. Hệ thống kiểm tra tên miền đáng ngờ và thống kê số lượng truy vấn có đặc điểm bất thường.
+DNS có thể bị lợi dụng để truy vấn tên miền độc hại hoặc truyền dữ liệu ra ngoài thông qua các nhãn dài, khó đọc, entropy cao. Trong đồ án, truy vấn khớp domain mẫu như \texttt{chatgpt.com}, \texttt{gemini.google.com} hoặc \texttt{claude.ai} được triển khai bằng luật chữ ký DNS mặc định trong signature engine, không nằm trong nhóm luật sliding-window. Ngược lại, DNS tunneling được nhận diện bằng dấu hiệu bất thường của chuỗi truy vấn trong cửa sổ thời gian.
 
 \subsection{Tấn công HTTP dựa trên chữ ký}
 Một số payload tấn công web có thể được nhận diện bằng nội dung trong URI, User-Agent hoặc body HTTP. Demo sử dụng luật tùy chỉnh để phát hiện chuỗi SQL Injection cơ bản và User-Agent của \texttt{sqlmap}.
@@ -106,6 +106,8 @@ Các cơ chế trên có một số giới hạn cần được hiểu đúng kh
 \begin{itemize}
     \item NIDS không nhìn thấy nội dung ứng dụng nếu lưu lượng được mã hóa bằng TLS mà không có cơ chế giải mã hợp lệ.
     \item Nếu không tái tạo TCP stream, chữ ký có thể bỏ sót payload bị chia nhỏ qua nhiều gói tin.
+    \item Nếu không xử lý IP fragmentation, TCP segmentation và out-of-order packets, hệ thống có thể bỏ sót hoặc phân tích sai một số luồng dữ liệu.
     \item Cảnh báo hành vi phụ thuộc vào ngưỡng và môi trường mạng cụ thể.
+    \item Các kỹ thuật encode, obfuscate hoặc chia nhỏ payload có thể né tránh signature matching đơn giản.
     \item Hệ thống demo dùng Python và Scapy phù hợp cho học tập, nhưng không đại diện cho hiệu năng của IDS triển khai trong mạng doanh nghiệp.
 \end{itemize}

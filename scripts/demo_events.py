@@ -35,6 +35,7 @@ def icmp_event(timestamp: float, src_ip: str) -> PacketEvent:
         dst_port=None,
         protocol="ICMP",
         length=84,
+        icmp_type=8,
     )
 
 
@@ -87,7 +88,7 @@ def main() -> int:
     events.extend(tcp_event(float(i), "10.0.0.10", 20 + i) for i in range(5))
     events.extend(icmp_event(float(i), "10.0.0.20") for i in range(5))
     events.extend(tcp_event(float(i), "10.0.0.30", 80, "S") for i in range(5))
-    events.append(dns_event(1.0, "10.0.0.40", "dropper.malware.test"))
+    events.append(dns_event(1.0, "10.0.0.40", "chatgpt.com"))
     events.append(
         payload_event(
             2.0,
@@ -99,7 +100,7 @@ def main() -> int:
 
     for event in events:
         for alert in engine.process_event(event):
-            print(f"{alert.attack_type}: {alert.description}")
+            print(f"{alert.rule_id} [{alert.detection_method}] {alert.attack_type}: {alert.description}")
 
     print(f"\nWrote demo alerts to {alert_path}")
     return 0
