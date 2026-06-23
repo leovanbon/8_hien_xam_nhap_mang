@@ -315,7 +315,7 @@
     \end{tabular}
     }
     \vspace{0.35em}
-    \footnotesize Signature rules sẽ được nạp thêm bên ngoài và có cú pháp giống với Suricata.
+    \footnotesize Signature rules sẽ được nạp thêm bên ngoài theo dạng Suricata-style subset (không tương thích đầy đủ với Suricata/Snort).
 \end{frame}
 
 \begin{frame}{Sliding window và giảm false positive}
@@ -460,7 +460,7 @@
         ICMP flood & \texttt{hping3 --icmp -i u80000 -c 120 <target>} & $\geq 100$ ICMP requests / 10s & RULE-002 \\
         SYN flood & \texttt{hping3 -S -p 80 -i u80000 -c 120 <target>} & $\geq 100$ SYN without ACK / 10s & RULE-003 \\
         DNS tunneling & \texttt{dig} long high-entropy labels & $\geq 5$ suspicious queries / 30s & RULE-004 \\
-        HTTP signature & \texttt{curl} SQLi/sqlmap payload & Suricata-style subset content match & custom.rules \\
+        DNS signature & \texttt{dig} truy vấn domain theo luật nạp sẵn & Suricata-style subset content match & custom.rules \\
         \bottomrule
     \end{tabular}
     }
@@ -475,11 +475,11 @@
         \toprule
         \textbf{Scenario} & \textbf{Expected alert} & \textbf{Observed alert} & \textbf{Evidence chính} & \textbf{Ghi chú} \\
         \midrule
-        Port scan & RULE-001 & 1 alert & unique ports = 20, count = 20 & Vượt ngưỡng scan trong cửa sổ 10 giây \\
+        Port scan & RULE-001 & 1 alert & unique\_ports $\geq$ 20, count = 20 & Vượt ngưỡng scan trong cửa sổ 10 giây \\
         ICMP flood & RULE-002 & 1 alert & icmp packets = 100 & Trigger đúng ngưỡng demo \\
         SYN flood & RULE-003 & 1 alert & syn packets = 100, dst\_port = 80 & SYN without ACK \\
         DNS tunneling & RULE-004 & 1 alert & suspicious queries = 5, entropy = 4.276, label = 54 & $\geq 5$ suspicious queries/30 giây \\
-        DNS signature & SID 1000101 & 10 alerts & dns.query chứa \texttt{example.com} & Gồm truy vấn nền và tunnel \\
+        DNS signature & SID 1000101 & 10 alerts & dns.query chứa \texttt{example.com} (domain demo) & Gồm truy vấn nền và tunnel \\
         \bottomrule
     \end{tabular}
     }

@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1782238750.13954 "/home/bon/8_hien_xam_nhap_mang/pres/Slide_HUST.tex" "Slide_HUST.pdf" "Slide_HUST" 1782238751.75821 0
-  "/home/bon/8_hien_xam_nhap_mang/pres/Slide_HUST.tex" 1782238749.95747 26904 a63e5a5fb67382b9bb83f4d62d4a52e7 ""
+["pdflatex"] 1782240541.30218 "/home/bon/8_hien_xam_nhap_mang/pres/Slide_HUST.tex" "Slide_HUST.pdf" "Slide_HUST" 1782240543.16936 0
+  "/home/bon/8_hien_xam_nhap_mang/pres/Slide_HUST.tex" 1782240542.45501 26995 4e2e75bc4472c36df88f27423d5e20b6 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc" 1775415801 3486 c7eadf5dcc57b3b2d11736679f6636ba ""
   "/usr/share/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc" 1775415801 2405 5dcf2c1b967ee25cc46c58cd52244aed ""
   "/usr/share/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc" 1775415801 2840 216e6e45ad352e2456e1149f28885bee ""
@@ -251,10 +251,10 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1782118593 5418909 d48fb256e573d3b961fb0e6b9b49cec7 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1782118471 2426822 534041afd92e3c5eb4ad2a2969c02d10 ""
-  "Slide_HUST.aux" 1782238751.65673 8450 8899d652389819fb4b64cbf6c06ccdac "pdflatex"
-  "Slide_HUST.nav" 1782238751.65865 3946 dcdb1e76c4b27fd3bd9afeabd5682d2b "pdflatex"
-  "Slide_HUST.out" 1782238751.65865 1159 9223450cc8a7a7a9dc4879259f802760 "pdflatex"
-  "Slide_HUST.tex" 1782238749.95747 26904 a63e5a5fb67382b9bb83f4d62d4a52e7 ""
+  "Slide_HUST.aux" 1782240543.04927 8450 8899d652389819fb4b64cbf6c06ccdac "pdflatex"
+  "Slide_HUST.nav" 1782240543.05078 3946 dcdb1e76c4b27fd3bd9afeabd5682d2b "pdflatex"
+  "Slide_HUST.out" 1782240543.04967 1159 9223450cc8a7a7a9dc4879259f802760 "pdflatex"
+  "Slide_HUST.tex" 1782240542.45501 26995 4e2e75bc4472c36df88f27423d5e20b6 ""
   "beamerthemeHUST.sty" 1782188416.82224 6600 d84937f88f05f000fb7b764be8820ecc ""
   "images/hust-blue-169-content-full.png" 1782088848 21413 c244d8c3729b7ce45468d2f7ba425c75 ""
   "images/hust-blue-169-content-hust-full.png" 1782088848 12637 e0e9680e0987e083e4945b93df730094 ""

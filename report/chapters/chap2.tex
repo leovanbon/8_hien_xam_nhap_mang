@@ -64,6 +64,8 @@ alert dns any any -> any 53 (msg:"Custom DNS Query: example.com";
 dns.query; content:"example.com"; nocase; sid:1000101; rev:1;)
 \end{verbatim}
 
+\textit{(Trong ví dụ này, \texttt{example.com} chỉ được dùng làm domain demo, không phải là dấu hiệu độc hại thực sự).}
+
 \begin{itemize}
     \item \textbf{Header luật:} xác định hành động, giao thức, địa chỉ IP, cổng và hướng lưu lượng.
     \item \textbf{Options:} mô tả điều kiện cần so khớp như \texttt{content}, \texttt{pcre}, \texttt{dns.query}, \texttt{sid}, \texttt{priority}.

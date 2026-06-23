@@ -31,11 +31,10 @@
 \contentsline {subsection}{\numberline {4.3.2}ICMP Ping Flood}{14}{subsection.4.3.2}%
 \contentsline {subsection}{\numberline {4.3.3}TCP SYN Flood}{14}{subsection.4.3.3}%
 \contentsline {subsection}{\numberline {4.3.4}DNS tunneling}{14}{subsection.4.3.4}%
-\contentsline {subsection}{\numberline {4.3.5}DNS signature rule}{14}{subsection.4.3.5}%
+\contentsline {subsection}{\numberline {4.3.5}DNS signature rule}{15}{subsection.4.3.5}%
 \contentsline {section}{\numberline {4.4}Đánh giá kết quả}{15}{section.4.4}%
 \contentsline {chapter}{\numberline {5}Kết luận và Hướng phát triển}{16}{chapter.5}%
 \contentsline {section}{\numberline {5.1}Kết quả đạt được}{16}{section.5.1}%
 \contentsline {section}{\numberline {5.2}Hạn chế}{16}{section.5.2}%
 \contentsline {section}{\numberline {5.3}Hướng phát triển}{17}{section.5.3}%
 \contentsline {section}{\numberline {5.4}Kết luận}{17}{section.5.4}%
-\contentsline {chapter}{Tài liệu tham khảo}{18}{chapter*.9}%

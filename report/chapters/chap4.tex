@@ -81,10 +81,12 @@ hping3 -S -p 80 -c 120 -i u80000 <TARGET_IP>
 Tùy chọn \texttt{-S} tạo TCP SYN without ACK, còn \texttt{-i u80000} giữ tốc độ ổn định hơn nhưng vẫn đủ cao cho threshold demo. Kết quả mong đợi là cảnh báo \textbf{RULE-003 TCP SYN Flood}. Trong phạm vi bài tập, hệ thống chỉ cảnh báo dựa trên số lượng gói SYN without ACK từ cùng nguồn, chưa kiểm tra trạng thái hoàn tất kết nối ở mức TCP stream đầy đủ.
 
 \subsection{DNS tunneling}
-Kịch bản DNS tạo các truy vấn có nhãn dài/entropy cao.
+Kịch bản DNS tạo các truy vấn có nhãn dài/entropy cao. Để kích hoạt cảnh báo, truy vấn cần được lặp lại ít nhất 5 lần:
 
 \begin{lstlisting}[language=bash]
-dig aGVsbG93b3JsZGhlbGxvd2...tunnel.example.com
+for i in {1..5}; do
+  dig "aGVsbG93b3JsZGhlbGxvd2...$i.tunnel.example.com"
+done
 \end{lstlisting}
 
 Kết quả mong đợi là \textbf{RULE-004 DNS Tunneling Suspicion} khi có đủ số truy vấn bất thường trong cửa sổ thời gian.
@@ -92,7 +94,7 @@ Kết quả mong đợi là \textbf{RULE-004 DNS Tunneling Suspicion} khi có đ
 Rule DNS tunneling có thể false positive với một số domain hợp lệ như CDN, tracking, DKIM, ACME challenge hoặc service discovery. Trong thực tế nên kết hợp thêm whitelist, NXDOMAIN rate, số lượng unique subdomain, qtype và reputation của base domain.
 
 \subsection{DNS signature rule}
-Kịch bản DNS bình thường và DNS tunneling cũng được dùng để kiểm tra luật chữ ký tùy chỉnh. Luật trong file \texttt{custom\_test.rules} so khớp các truy vấn DNS chứa chuỗi \texttt{example.com}:
+Kịch bản DNS bình thường và DNS tunneling cũng được dùng để kiểm tra luật chữ ký tùy chỉnh. Luật trong file \texttt{custom\_test.rules} so khớp các truy vấn DNS chứa chuỗi \texttt{example.com} (chỉ là domain demo, không phải độc hại):
 
 \begin{lstlisting}[language=bash]
 dig +short example.com @8.8.8.8
@@ -119,11 +121,11 @@ Số liệu dưới đây được lấy trực tiếp từ file \texttt{data/al
     \begin{tabular}{|>{\raggedright\arraybackslash}p{2.3cm}|>{\raggedright\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}p{2.1cm}|>{\raggedright\arraybackslash}p{3.2cm}|>{\raggedright\arraybackslash}p{3.4cm}|}
         \hline
         \textbf{Scenario} & \textbf{Expected alert} & \textbf{Observed alert} & \textbf{Evidence chính} & \textbf{Ghi chú} \\ \hline
-        Port scan & RULE-001 & 1 alert & unique ports = 20, count = 20 & Vượt ngưỡng scan trong cửa sổ 10 giây. \\ \hline
+        Port scan & RULE-001 & 1 alert & unique\_ports $\geq$ 20, count = 20 & Vượt ngưỡng scan trong cửa sổ 10 giây. \\ \hline
         ICMP flood & RULE-002 & 1 alert & icmp packets = 100 & Trigger đúng ngưỡng demo. \\ \hline
         SYN flood & RULE-003 & 1 alert & syn packets = 100, dst\_port = 80 & SYN without ACK. \\ \hline
         DNS tunneling & RULE-004 & 1 alert & suspicious queries = 5, max label entropy = 4.276, max label length = 54 & $\geq$ 5 suspicious queries/30 giây. \\ \hline
-        DNS signature & 1000101 & 10 alerts & dns.query chứa \texttt{example.com} & Gồm truy vấn nền và các truy vấn \texttt{tunnel.example.com}. \\ \hline
+        DNS signature & 1000101 & 10 alerts & dns.query chứa \texttt{example.com} (domain demo) & Gồm truy vấn nền và các truy vấn \texttt{tunnel.example.com}. \\ \hline
     \end{tabular}
     \caption{Bảng kết quả thực nghiệm từ file alert đã lưu}
 \end{table}
