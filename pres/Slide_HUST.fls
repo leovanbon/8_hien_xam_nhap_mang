@@ -537,6 +537,7 @@ INPUT ./images/hust-blue-169-content-hust-full.png
 INPUT ./images/hust-blue-169-content-hust-full.png
 INPUT ./images/hust-blue-169-content-hust-full.png
 INPUT /usr/share/texmf-dist/fonts/tfm/public/lm/t5-lmssbx10.tfm
+INPUT /usr/share/texmf-dist/fonts/tfm/public/lm/t5-lmtt8.tfm
 INPUT ./images/hust-blue-169-content-hust-full.png
 INPUT ./images/hust-blue-169-content-hust-full.png
 INPUT ./images/hust-blue-169-content-hust-full.png
@@ -569,7 +570,7 @@ INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmssbx10.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmsso10.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmsso8.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmsy10.pfb
-INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmsy8.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmtt10.pfb
+INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmtt8.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/lm/lmtt9.pfb
 INPUT /usr/share/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb

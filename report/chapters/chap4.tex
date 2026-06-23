@@ -112,7 +112,7 @@ Trong môi trường lab, các kịch bản trên kiểm tra được các nhóm
     \item Dashboard hiển thị được số lượng cảnh báo, mức độ nghiêm trọng, IP nguồn và danh sách cảnh báo gần nhất.
 \end{itemize}
 
-Do chưa có log chạy lab cuối cùng trong báo cáo này, bảng dưới đây để lại cột số liệu thực nghiệm cần điền sau khi chạy lại script demo. Không nên tự điền số liệu nếu chưa có file alert tương ứng.
+Số liệu dưới đây được lấy từ file \texttt{data/alerts\_saved\_20260624\_001342.jsonl}. File này lưu 5 cảnh báo thực nghiệm; file \texttt{data/alerts.jsonl} tại thời điểm kiểm tra đang rỗng.
 
 \begin{table}[H]
     \centering
@@ -121,13 +121,13 @@ Do chưa có log chạy lab cuối cùng trong báo cáo này, bảng dưới đ
     \begin{tabular}{|>{\raggedright\arraybackslash}p{2.3cm}|>{\raggedright\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}p{2.1cm}|>{\raggedright\arraybackslash}p{3.2cm}|>{\raggedright\arraybackslash}p{3.4cm}|}
         \hline
         \textbf{Scenario} & \textbf{Expected alert} & \textbf{Observed alert} & \textbf{Evidence chính} & \textbf{Ghi chú} \\ \hline
-        Port scan & RULE-001 & TODO: điền số thực tế & unique ports, count & Trigger khi $\geq$ 20 ports/10 giây. \\ \hline
-        ICMP flood & RULE-002 & TODO: điền số thực tế & icmp count & Trigger khi $\geq$ 100 requests/10 giây. \\ \hline
-        SYN flood & RULE-003 & TODO: điền số thực tế & syn count & SYN without ACK. \\ \hline
-        DNS tunneling & RULE-004 & TODO: điền số thực tế & query, reason counts, count & $\geq$ 5 suspicious queries/30 giây. \\ \hline
-        HTTP signature & \texttt{custom.rules} & TODO: điền số thực tế & matched content/User-Agent & Suricata-style subset. \\ \hline
+        Port scan & RULE-001 & 2 alerts & unique ports = 20, count = 20 & Hai lần vượt ngưỡng scan. \\ \hline
+        ICMP flood & RULE-002 & 1 alert & icmp packets = 100 & Trigger đúng ngưỡng demo. \\ \hline
+        SYN flood & RULE-003 & 1 alert & syn packets = 100, dst\_port = 80 & SYN without ACK. \\ \hline
+        DNS tunneling & RULE-004 & 1 alert & suspicious queries = 5, max label entropy = 4.276, max label length = 54 & $\geq$ 5 suspicious queries/30 giây. \\ \hline
+        HTTP signature & \texttt{custom.rules} & 0 alert trong file lưu & -- & Không có dòng HTTP signature trong file alert đã lưu. \\ \hline
     \end{tabular}
-    \caption{Bảng kết quả thực nghiệm cần hoàn thiện sau khi chạy lab}
+    \caption{Bảng kết quả thực nghiệm từ file alert đã lưu}
 \end{table}
 
 Kết quả này xác nhận hệ thống đáp ứng mục tiêu học tập và trình diễn. Tuy nhiên, đánh giá này chỉ có giá trị trong phạm vi lab có kiểm soát. Để kết luận về độ chính xác trong mạng thực tế cần có bộ dữ liệu lớn hơn, lưu lượng nền đa dạng hơn, kiểm thử false positive/false negative và đo hiệu năng xử lý gói tin.

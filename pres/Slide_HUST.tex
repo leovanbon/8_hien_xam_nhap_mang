@@ -469,7 +469,7 @@
     \footnotesize Các lệnh flood chỉ dùng trong lab có kiểm soát.
 \end{frame}
 
-\begin{frame}{Kết quả thực nghiệm cần báo cáo}
+\begin{frame}{Kết quả thực nghiệm từ file lưu}
     \scriptsize
     \renewcommand{\arraystretch}{1.12}
     \resizebox{\linewidth}{!}{%
@@ -477,18 +477,18 @@
         \toprule
         \textbf{Scenario} & \textbf{Expected alert} & \textbf{Observed alert} & \textbf{Evidence chính} & \textbf{Ghi chú} \\
         \midrule
-        Port scan & RULE-001 & TODO: điền số thực tế & unique ports, count & Trigger khi $\geq 20$ ports/10s \\
-        ICMP flood & RULE-002 & TODO: điền số thực tế & icmp count & Trigger khi $\geq 100$ requests/10s \\
-        SYN flood & RULE-003 & TODO: điền số thực tế & syn count, dst\_port & SYN without ACK \\
-        DNS tunneling & RULE-004 & TODO: điền số thực tế & entropy, label length, count & $\geq 5$ suspicious queries/30s \\
-        HTTP signature & custom.rules & TODO: điền số thực tế & matched content/User-Agent & Suricata-style subset \\
+        Port scan & RULE-001 & 2 alerts & unique ports = 20 & 2 lần vượt ngưỡng scan \\
+        ICMP flood & RULE-002 & 1 alert & icmp packets = 100 & Trigger đúng ngưỡng demo \\
+        SYN flood & RULE-003 & 1 alert & syn packets = 100, dst\_port = 80 & SYN without ACK \\
+        DNS tunneling & RULE-004 & 1 alert & count = 5, entropy = 4.276, label = 54 & High-entropy labels \\
+        HTTP signature & custom.rules & 0 alert trong file lưu & -- & Không có dòng HTTP signature trong file \\
         \bottomrule
     \end{tabular}
     }
 
     \vspace{0.45cm}
-    \begin{alertblock}{TODO trước khi nộp/bảo vệ}
-        Chạy lại script demo trong lab và điền số alert thực tế vào bảng; không tự bịa số liệu.
+    \begin{alertblock}{Nguồn số liệu}
+        Lấy từ \texttt{data/alerts\_saved\_20260624\_001342.jsonl}: 5 alerts; \texttt{data/alerts.jsonl} hiện rỗng.
     \end{alertblock}
 \end{frame}
 
