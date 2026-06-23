@@ -119,19 +119,15 @@ Các luật tích hợp gồm:
 Với port scan, prototype chỉ đếm các probe flags như SYN, FIN, NULL và Xmas. Xmas scan tương ứng FIN + PSH + URG. ACK scan có thể tạo false positive nếu không có state tracking đầy đủ, vì vậy phần phát hiện ACK scan chỉ nên xem là minh họa trong prototype.
 
 \section{Luật chữ ký dạng Suricata-style subset}
-Ngoài luật hành vi, hệ thống hỗ trợ một tập con cú pháp kiểu Suricata/Snort. Người dùng có thể truyền tệp luật qua tham số \texttt{--rules}. Trong demo, tệp \texttt{custom.rules} chứa ba luật HTTP:
+Ngoài luật hành vi, hệ thống hỗ trợ một tập con cú pháp kiểu Suricata/Snort. Người dùng có thể truyền tệp luật qua tham số \texttt{--rules}. Trong lần thử nghiệm được lưu ở \texttt{data/alerts.jsonl}, luật chữ ký được kích hoạt là luật DNS kiểm tra truy vấn chứa \texttt{example.com}:
 
 \begin{lstlisting}[language=bash, breaklines=true, caption={Luật chữ ký dùng trong demo}]
-alert http any any -> any 80 (msg:"HTTP URI SQL Injection Attempt"; http.uri; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000001; rev:1;)
-
-alert http any any -> any 80 (msg:"sqlmap Scanner User-Agent Detected"; http.user_agent; content:"sqlmap"; nocase; classtype:attempted-recon; priority:2; sid:1000002; rev:1;)
-
-alert tcp any any -> any 80 (msg:"HTTP POST Body SQL Injection Attempt"; pkt_data; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000003; rev:1;)
+alert dns any any -> any 53 (msg:"Custom DNS Query: example.com"; dns.query; content:"example.com"; nocase; classtype:policy-violation; priority:3; sid:1000101; rev:1;)
 \end{lstlisting}
 
 Mục tiêu của phần này là minh họa cách một signature engine hoạt động: phân tích header luật, chọn buffer cần kiểm tra, sau đó so khớp nội dung hoặc biểu thức chính quy. Đây là \textit{Suricata-style subset}, không phải engine tương thích đầy đủ với Suricata/Snort.
 
-Subset prototype hỗ trợ các thành phần cơ bản như header luật, \texttt{content}, \texttt{pcre}, \texttt{nocase}, một số sticky buffer HTTP/DNS và threshold đơn giản. Các tính năng chưa hỗ trợ đầy đủ gồm \texttt{depth/offset}, \texttt{distance/within}, \texttt{byte\_test}, \texttt{flowbits}, TCP stream inspection, \texttt{file\_data} và tối ưu \texttt{fast\_pattern}. Tùy chọn \texttt{flow} hiện chỉ được kiểm tra ở mức hướng cơ bản, chưa phải stateful TCP flow tracking như IDS production.
+Subset prototype hỗ trợ các thành phần cơ bản như header luật, \texttt{content}, \texttt{pcre}, \texttt{nocase}, một số sticky buffer DNS/payload và threshold đơn giản. Các tính năng chưa hỗ trợ đầy đủ gồm \texttt{depth/offset}, \texttt{distance/within}, \texttt{byte\_test}, \texttt{flowbits}, TCP stream inspection, \texttt{file\_data} và tối ưu \texttt{fast\_pattern}. Tùy chọn \texttt{flow} hiện chỉ được kiểm tra ở mức hướng cơ bản, chưa phải stateful TCP flow tracking như IDS production.
 
 \section{Lưu trữ và dashboard}
 Cảnh báo được biểu diễn bằng \texttt{Alert} và ghi dưới dạng JSON Lines. Mỗi dòng là một cảnh báo độc lập nên hệ thống có thể append liên tục mà không cần đọc lại toàn bộ tệp.
@@ -145,4 +141,4 @@ Dashboard trong \texttt{dashboard/app.py} đọc tệp cảnh báo, cache theo t
     \item danh sách cảnh báo gần nhất.
 \end{itemize}
 
-Dashboard phục vụ quan sát và trình diễn kết quả; phần phản ứng tự động như chặn IP hoặc cập nhật tường lửa chưa nằm trong phạm vi đồ án.
+Dashboard phục vụ quan sát và trình diễn kết quả; phần phản ứng tự động như chặn IP hoặc cập nhật tường lửa chưa nằm trong phạm vi bài tập.

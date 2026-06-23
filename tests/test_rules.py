@@ -267,6 +267,30 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(alerts[0].rule_id, "900002")
         self.assertEqual(alerts[0].attack_type, "HTTP SQLi")
 
+    def test_suricata_http_uri_matches_url_encoded_payload(self) -> None:
+        rules = SlidingWindowRules(
+            RuleConfig(
+                suricata_rules=(
+                    'alert http any any -> any 80 (msg:"HTTP URI SQL Injection Attempt"; '
+                    'http.uri; content:"\' OR \'1\'=\'1"; nocase; sid:1000001; rev:1;)',
+                )
+            )
+        )
+
+        alerts = rules.evaluate(
+            event(
+                timestamp=1.0,
+                dst_port=80,
+                payload_text=(
+                    "GET /index.php?id=%27%20OR%20%271%27%3D%271 HTTP/1.1\r\n"
+                    "Host: example.test\r\n\r\n"
+                ),
+            )
+        )
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0].rule_id, "1000001")
+
     def test_suricata_dns_sticky_buffer_rule_alerts(self) -> None:
         rules = SlidingWindowRules(
             RuleConfig(

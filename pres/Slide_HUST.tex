@@ -267,8 +267,8 @@
         Capture & \texttt{nids/capture.py} & Đọc PCAP hoặc sniff live interface. \\
         Parser & \texttt{nids/parser.py} & Chuyển packet thành \texttt{PacketEvent}. \\
         Orchestrator & \texttt{nids/engine.py} & Đếm packet, gọi rule engine, ghi alert. \\
-        Behavior rules & \texttt{behavior.py} & Sliding window cho scan/flood/DNS tunneling. \\
-        Signature rules & \texttt{rules/parser.py}, \texttt{rules/engine.py} & Match rule Suricata-style subset do người dùng nạp. \\
+        Behavior rules & \texttt{nids/rules/behavior.py} & Sliding window cho scan/flood/DNS tunneling. \\
+        Signature rules & \texttt{nids/rules/parser.py}, \texttt{nids/rules/engine.py} & Match rule Suricata-style subset do người dùng nạp. \\
         Dashboard & \texttt{dashboard/app.py} & Đọc JSONL, tính thống kê, render web. \\
         \bottomrule
     \end{tabular}
@@ -279,12 +279,12 @@
 
 \begin{frame}{6. Detection Engine}
     \centering
-    \resizebox{0.86\linewidth}{!}{%
-    \begin{tikzpicture}[node distance=0.65cm and 0.9cm]
+    \resizebox{0.94\linewidth}{!}{%
+    \begin{tikzpicture}[node distance=0.8cm and 1.4cm]
         \node[bluebox, minimum width=2.5cm] (event) {\texttt{PacketEvent}};
-        \node[orangebox, right=of event, yshift=0.75cm, minimum width=3.0cm] (behavior) {SlidingWindowRules\\\footnotesize counters, queues, entropy};
-        \node[orangebox, right=of event, yshift=-0.75cm, minimum width=3.0cm] (sig) {SuricataRuleEngine\\\footnotesize header + options};
-        \node[greenbox, right=3.9cm of event, minimum width=2.6cm] (alert) {\texttt{Alert}};
+        \node[orangebox, right=of event, yshift=0.9cm, minimum width=3.2cm] (behavior) {SlidingWindowRules\\\footnotesize counters, queues, entropy};
+        \node[orangebox, right=of event, yshift=-0.9cm, minimum width=3.2cm] (sig) {SuricataRuleEngine\\\footnotesize header + options};
+        \node[greenbox, right=5.2cm of event, minimum width=2.6cm] (alert) {\texttt{Alert}};
         \node[bluebox, right=of alert, minimum width=2.6cm] (json) {JSONL};
 
         \draw[arrow] (event) -- (behavior);
@@ -315,7 +315,7 @@
     \end{tabular}
     }
     \vspace{0.35em}
-    \footnotesize Bốn rule mặc định đều là behavior/anomaly; domain blacklist nếu cần sẽ nạp bằng custom signature, không nằm trong nhóm rule này.
+    \footnotesize Signature rules sẽ được nạp thêm bên ngoài và có cú pháp giống với Suricata.
 \end{frame}
 
 \begin{frame}{Sliding window và giảm false positive}
@@ -432,11 +432,11 @@
 
 \begin{frame}{7. Thử nghiệm và kết quả}
     \centering
-    \begin{tikzpicture}[node distance=1.0cm and 2.2cm]
+    \begin{tikzpicture}[node distance=1.2cm and 4.0cm]
         \node[redbox, minimum width=2.75cm, minimum height=1.1cm] (kali) {Kali Linux\\\footnotesize attacker};
         \node[greenbox, right=of kali, minimum width=2.75cm, minimum height=1.1cm] (target) {Target VM\\\footnotesize HTTP service};
-        \node[bluebox, below=1.25cm of $(kali)!0.5!(target)$, minimum width=3.55cm, minimum height=1.1cm] (host) {Host Machine\\\footnotesize NIDS + Dashboard};
-        \node[orangebox, below=0.95cm of host, minimum width=3.55cm] (json) {\texttt{data/alerts.jsonl}};
+        \node[bluebox, below=1.4cm of $(kali)!0.5!(target)$, minimum width=3.55cm, minimum height=1.1cm] (host) {Host Machine\\\footnotesize NIDS + Dashboard};
+        \node[orangebox, below=1.0cm of host, minimum width=3.55cm] (json) {\texttt{data/alerts.jsonl}};
 
         \draw[<->, thick, draw=attackred!80] (kali) -- node[above, font=\footnotesize] {\texttt{nmap}, \texttt{hping3}, \texttt{dig}, \texttt{curl}} (target);
         \draw[dashedarrow] ($(kali)!0.5!(target)$) -- node[right, font=\footnotesize] {sniff interface} (host);
@@ -444,12 +444,11 @@
     \end{tikzpicture}
 
     \vspace{0.45cm}
-    \begin{block}{Phạm vi thử nghiệm}
-        Các lệnh tạo traffic chỉ chạy trong môi trường lab/VM cô lập và có quyền. NIDS sniff traffic trên interface mirror/bridge trong lab.
-    \end{block}
+    Các lệnh tạo traffic chỉ chạy trong môi trường lab/VM cô lập và có quyền. NIDS sniff traffic trên interface mirror/bridge trong lab.
+
 \end{frame}
 
-\begin{frame}{Kịch bản tấn công trong script}
+\begin{frame}{Kịch bản thử nghiệm}
     \small
     \renewcommand{\arraystretch}{1.18}
     \resizebox{\linewidth}{!}{%
@@ -457,16 +456,15 @@
         \toprule
         \textbf{Scenario} & \textbf{Lệnh/công cụ} & \textbf{Detection signal} & \textbf{Rule} \\
         \midrule
-        Port scan & \texttt{nmap -sS} quét 25 port & $\geq 20$ unique ports / 10s & RULE-001 \\
-        ICMP flood & \texttt{hping3 --icmp --fast -c 120 <target>} & $\geq 100$ ICMP requests / 10s & RULE-002 \\
-        SYN flood & \texttt{hping3 -S -p 80 --fast -c 120 <target>} & $\geq 100$ SYN without ACK / 10s & RULE-003 \\
+        Port scan & \texttt{nmap -sS --scan-delay 30ms} & $\geq 20$ unique ports / 10s & RULE-001 \\
+        ICMP flood & \texttt{hping3 --icmp -i u80000 -c 120 <target>} & $\geq 100$ ICMP requests / 10s & RULE-002 \\
+        SYN flood & \texttt{hping3 -S -p 80 -i u80000 -c 120 <target>} & $\geq 100$ SYN without ACK / 10s & RULE-003 \\
         DNS tunneling & \texttt{dig} long high-entropy labels & $\geq 5$ suspicious queries / 30s & RULE-004 \\
         HTTP signature & \texttt{curl} SQLi/sqlmap payload & Suricata-style subset content match & custom.rules \\
         \bottomrule
     \end{tabular}
     }
     \vspace{0.35em}
-    \footnotesize Các lệnh flood chỉ dùng trong lab có kiểm soát.
 \end{frame}
 
 \begin{frame}{Kết quả thực nghiệm từ file lưu}
@@ -477,19 +475,17 @@
         \toprule
         \textbf{Scenario} & \textbf{Expected alert} & \textbf{Observed alert} & \textbf{Evidence chính} & \textbf{Ghi chú} \\
         \midrule
-        Port scan & RULE-001 & 2 alerts & unique ports = 20 & 2 lần vượt ngưỡng scan \\
+        Port scan & RULE-001 & 1 alert & unique ports = 20, count = 20 & Vượt ngưỡng scan trong cửa sổ 10 giây \\
         ICMP flood & RULE-002 & 1 alert & icmp packets = 100 & Trigger đúng ngưỡng demo \\
         SYN flood & RULE-003 & 1 alert & syn packets = 100, dst\_port = 80 & SYN without ACK \\
-        DNS tunneling & RULE-004 & 1 alert & count = 5, entropy = 4.276, label = 54 & High-entropy labels \\
-        HTTP signature & custom.rules & 0 alert trong file lưu & -- & Không có dòng HTTP signature trong file \\
+        DNS tunneling & RULE-004 & 1 alert & suspicious queries = 5, entropy = 4.276, label = 54 & $\geq 5$ suspicious queries/30 giây \\
+        DNS signature & SID 1000101 & 10 alerts & dns.query chứa \texttt{example.com} & Gồm truy vấn nền và tunnel \\
         \bottomrule
     \end{tabular}
     }
 
     \vspace{0.45cm}
-    \begin{alertblock}{Nguồn số liệu}
-        Lấy từ \texttt{data/alerts\_saved\_20260624\_001342.jsonl}: 5 alerts; \texttt{data/alerts.jsonl} hiện rỗng.
-    \end{alertblock}
+    Dữ liệu lấy từ \texttt{data/alerts.jsonl}: 14 alerts (3 behavior, 1 anomaly, 10 signature DNS) sau khi chạy thực nghiệm.
 \end{frame}
 
 \section{Thảo luận}

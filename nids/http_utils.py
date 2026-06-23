@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import unquote_plus
+
 
 def parse_http_payload(payload: str) -> dict[str, str]:
     """Parse HTTP request payload and extract method, URI, headers, etc.
@@ -13,7 +15,7 @@ def parse_http_payload(payload: str) -> dict[str, str]:
     request_line = lines[0] if lines else ""
     parts = request_line.split()
     method = parts[0] if len(parts) >= 2 and parts[0].isalpha() else ""
-    uri = parts[1] if method else ""
+    uri = unquote_plus(parts[1]) if method else ""
     header = "\n".join(lines[1:])
     headers: dict[str, str] = {}
     for line in lines[1:]:
