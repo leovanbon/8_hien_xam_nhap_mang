@@ -8,7 +8,7 @@
     \item Chuẩn hóa packet thành cấu trúc \texttt{PacketEvent}.
     \item Phát hiện hành vi/anomaly bằng cửa sổ trượt thời gian với các ngưỡng lab/demo.
     \item Phân tích một \textit{Suricata-style subset} để phát hiện chữ ký trong HTTP, DNS và payload.
-    \item Chuyển rule khớp domain blacklist thành luật chữ ký DNS mặc định trong signature engine, tách khỏi sliding-window rules.
+    \item Tách domain blacklist khỏi nhóm rule mặc định; nếu cần phát hiện domain cụ thể thì nạp bằng luật chữ ký tùy chỉnh.
     \item Ghi cảnh báo ra JSON Lines và hiển thị qua dashboard Flask.
     \item Có kịch bản demo để kiểm tra các rule chính trong môi trường lab.
 \end{itemize}

@@ -116,46 +116,9 @@ class RuleTests(unittest.TestCase):
 
         self.assertEqual(alerts, [])
 
-    def test_suspicious_dns_query_alerts(self) -> None:
-        rules = SlidingWindowRules(
-            RuleConfig(suspicious_domains={"chatgpt.com"})
-        )
-
-        alerts = rules.evaluate(
-            event(
-                timestamp=1.0,
-                protocol="DNS",
-                dst_port=53,
-                dns_query="api.chatgpt.com",
-            )
-        )
-
-        self.assertEqual(len(alerts), 1)
-        self.assertEqual(alerts[0].rule_id, "RULE-004")
-        self.assertEqual(alerts[0].attack_type, "Suspicious DNS Query")
-        self.assertEqual(alerts[0].detection_method, "signature")
-        self.assertEqual(alerts[0].evidence["query"], "api.chatgpt.com")
-
-    def test_suspicious_dns_signature_uses_domain_boundary(self) -> None:
-        rules = SlidingWindowRules(
-            RuleConfig(suspicious_domains={"chatgpt.com"})
-        )
-
-        alerts = rules.evaluate(
-            event(
-                timestamp=1.0,
-                protocol="DNS",
-                dst_port=53,
-                dns_query="notchatgpt.com",
-            )
-        )
-
-        self.assertEqual(alerts, [])
-
     def test_dns_tunneling_suspicion_alerts_after_threshold(self) -> None:
         rules = SlidingWindowRules(
             RuleConfig(
-                suspicious_domains=set(),
                 dns_tunnel_window_seconds=10,
                 dns_tunnel_suspicious_count=2,
                 dns_tunnel_min_label_length=40,
@@ -176,7 +139,7 @@ class RuleTests(unittest.TestCase):
             )
 
         self.assertEqual(len(alerts), 1)
-        self.assertEqual(alerts[0].rule_id, "RULE-005")
+        self.assertEqual(alerts[0].rule_id, "RULE-004")
         self.assertEqual(alerts[0].attack_type, "DNS Tunneling Suspicion")
         self.assertEqual(alerts[0].detection_method, "anomaly")
         self.assertEqual(alerts[0].evidence["suspicious_queries"], 2)
@@ -190,7 +153,6 @@ class RuleTests(unittest.TestCase):
     def test_normal_dns_queries_do_not_trigger_tunneling_rule(self) -> None:
         rules = SlidingWindowRules(
             RuleConfig(
-                suspicious_domains=set(),
                 dns_tunnel_window_seconds=10,
                 dns_tunnel_suspicious_count=2,
             )
@@ -308,7 +270,6 @@ class RuleTests(unittest.TestCase):
     def test_suricata_dns_sticky_buffer_rule_alerts(self) -> None:
         rules = SlidingWindowRules(
             RuleConfig(
-                suspicious_domains=set(),
                 suricata_rules=(
                     'alert dns any any -> any 53 (msg:"DNS bad query"; '
                     'dns.query; content:"bad.example"; nocase; sid:900003; rev:1;)',

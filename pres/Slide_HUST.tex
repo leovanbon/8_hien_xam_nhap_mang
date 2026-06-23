@@ -219,7 +219,7 @@
         \draw[arrow] (store) -- (dash);
 
         \node[redbox, below=1.05cm of engine, minimum width=2.55cm] (rules1) {Behavior/anomaly rules};
-        \node[redbox, below=1.05cm of store, minimum width=2.75cm] (rules2) {DNS + HTTP signatures};
+        \node[redbox, below=1.05cm of store, minimum width=2.75cm] (rules2) {Custom signatures};
         \draw[dashedarrow] (rules1) -- (engine);
         \draw[dashedarrow] (rules2) -- (engine);
     \end{tikzpicture}
@@ -268,7 +268,7 @@
         Parser & \texttt{nids/parser.py} & Chuyển packet thành \texttt{PacketEvent}. \\
         Orchestrator & \texttt{nids/engine.py} & Đếm packet, gọi rule engine, ghi alert. \\
         Behavior rules & \texttt{behavior.py} & Sliding window cho scan/flood/DNS tunneling. \\
-        Signature rules & \texttt{rules/parser.py}, \texttt{rules/engine.py} & Match DNS blacklist mặc định và rule Suricata-style subset. \\
+        Signature rules & \texttt{rules/parser.py}, \texttt{rules/engine.py} & Match rule Suricata-style subset do người dùng nạp. \\
         Dashboard & \texttt{dashboard/app.py} & Đọc JSONL, tính thống kê, render web. \\
         \bottomrule
     \end{tabular}
@@ -310,13 +310,12 @@
         RULE-001 & Port Scan & Behavior-based & $\geq 20$ TCP destination ports từ một source trong 10s. & Medium \\
         RULE-002 & ICMP Ping Flood & Behavior-based & $\geq 100$ ICMP request packets trong 10s. & High \\
         RULE-003 & TCP SYN Flood & Behavior-based & $\geq 100$ TCP SYN packets without ACK tới cùng destination service trong 10s. & High \\
-        RULE-004 & Suspicious DNS & Signature-based & DNS query khớp domain blacklist như \texttt{chatgpt.com}, \texttt{gemini.google.com}, \texttt{claude.ai}. & Medium \\
-        RULE-005 & DNS Tunneling & Behavior/anomaly-based & $\geq 5$ DNS query đáng ngờ từ cùng source trong 30s. & Medium \\
+        RULE-004 & DNS Tunneling & Behavior/anomaly-based & $\geq 5$ DNS query đáng ngờ từ cùng source trong 30s. & Medium \\
         \bottomrule
     \end{tabular}
     }
     \vspace{0.35em}
-    \footnotesize RULE-004 được sinh từ domain blacklist và chạy trong signature engine; các threshold behavior/anomaly dùng để demo trong lab, không phải ngưỡng production cố định.
+    \footnotesize Bốn rule mặc định đều là behavior/anomaly; domain blacklist nếu cần sẽ nạp bằng custom signature, không nằm trong nhóm rule này.
 \end{frame}
 
 \begin{frame}{Sliding window và giảm false positive}
@@ -390,7 +389,7 @@
                 \item Protocol: \texttt{ip}, \texttt{tcp}, \texttt{udp}, \texttt{icmp}, \texttt{dns}, \texttt{http}.
                 \item Option: \texttt{msg}, \texttt{sid}, \texttt{priority}, \texttt{content}, \texttt{pcre}, \texttt{nocase}.
                 \item Sticky buffer: \texttt{pkt\_data}, \texttt{dns.query}, \texttt{http.uri}, \texttt{http.user\_agent}, \texttt{http.host}.
-                \item Built-in RULE-004 dùng \texttt{dns.query} + \texttt{pcre} cho domain blacklist.
+                \item DNS blacklist có thể viết bằng custom rule dùng \texttt{dns.query} + \texttt{pcre}.
             \end{itemize}
             \begin{alertblock}{Chưa hỗ trợ đầy đủ}
                 \footnotesize \texttt{flow}, \texttt{depth/offset}, \texttt{distance/within}, \texttt{fast\_pattern}, \texttt{flowbits}, \texttt{byte\_test}, TCP stream inspection, \texttt{file\_data}.
@@ -461,8 +460,7 @@
         Port scan & \texttt{nmap -sS} quét 25 port & $\geq 20$ unique ports / 10s & RULE-001 \\
         ICMP flood & \texttt{hping3 --icmp --fast -c 120 <target>} & $\geq 100$ ICMP requests / 10s & RULE-002 \\
         SYN flood & \texttt{hping3 -S -p 80 --fast -c 120 <target>} & $\geq 100$ SYN without ACK / 10s & RULE-003 \\
-        Suspicious DNS & \texttt{dig} domain blacklist mẫu & DNS signature match & RULE-004 \\
-        DNS tunneling & \texttt{dig} long high-entropy labels & $\geq 5$ suspicious queries / 30s & RULE-005 \\
+        DNS tunneling & \texttt{dig} long high-entropy labels & $\geq 5$ suspicious queries / 30s & RULE-004 \\
         HTTP signature & \texttt{curl} SQLi/sqlmap payload & Suricata-style subset content match & custom.rules \\
         \bottomrule
     \end{tabular}
@@ -482,8 +480,7 @@
         Port scan & RULE-001 & TODO: điền số thực tế & unique ports, count & Trigger khi $\geq 20$ ports/10s \\
         ICMP flood & RULE-002 & TODO: điền số thực tế & icmp count & Trigger khi $\geq 100$ requests/10s \\
         SYN flood & RULE-003 & TODO: điền số thực tế & syn count, dst\_port & SYN without ACK \\
-        Suspicious DNS & RULE-004 & TODO: điền số thực tế & DNS signature match & domain blacklist \\
-        DNS tunneling & RULE-005 & TODO: điền số thực tế & entropy, label length, count & $\geq 5$ suspicious queries/30s \\
+        DNS tunneling & RULE-004 & TODO: điền số thực tế & entropy, label length, count & $\geq 5$ suspicious queries/30s \\
         HTTP signature & custom.rules & TODO: điền số thực tế & matched content/User-Agent & Suricata-style subset \\
         \bottomrule
     \end{tabular}

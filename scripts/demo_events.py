@@ -85,10 +85,9 @@ def main() -> int:
     engine = NIDSEngine(rules=rules, store=AlertStore(alert_path))
 
     events: list[PacketEvent] = []
-    events.extend(tcp_event(float(i), "10.0.0.10", 20 + i) for i in range(5))
+    events.extend(tcp_event(float(i), "10.0.0.10", 20 + i, "S") for i in range(5))
     events.extend(icmp_event(float(i), "10.0.0.20") for i in range(5))
     events.extend(tcp_event(float(i), "10.0.0.30", 80, "S") for i in range(5))
-    events.append(dns_event(1.0, "10.0.0.40", "chatgpt.com"))
     events.append(
         payload_event(
             2.0,

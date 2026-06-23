@@ -90,7 +90,7 @@ def process_event(self, event: PacketEvent) -> list[Alert]:
 \end{lstlisting}
 
 \section{Luật phát hiện tích hợp}
-Các luật hành vi và anomaly được triển khai bằng cửa sổ trượt theo thời gian. Hệ thống lưu các sự kiện gần nhất theo IP nguồn và loại bỏ dữ liệu đã nằm ngoài khung thời gian cấu hình. Riêng RULE-004 được biên dịch thành luật chữ ký DNS mặc định và chạy trong signature engine, không nằm trong sliding-window rules. Các ngưỡng trong bảng là giá trị lab/demo, chưa phải khuyến nghị production.
+Các luật hành vi và anomaly được triển khai bằng cửa sổ trượt theo thời gian. Hệ thống lưu các sự kiện gần nhất theo IP nguồn và loại bỏ dữ liệu đã nằm ngoài khung thời gian cấu hình. Các ngưỡng trong bảng là giá trị lab/demo, chưa phải khuyến nghị production.
 
 \begin{lstlisting}[language=Python, caption={Loại bỏ sự kiện cũ trong cửa sổ thời gian}]
 @staticmethod
@@ -111,8 +111,7 @@ Các luật tích hợp gồm:
         RULE-001 & Port Scan & Behavior-based & $\geq$ 20 TCP destination ports từ một source trong 10 giây. & Medium \\ \hline
         RULE-002 & ICMP Ping Flood & Behavior-based & $\geq$ 100 ICMP request packets trong 10 giây. & High \\ \hline
         RULE-003 & TCP SYN Flood & Behavior-based & $\geq$ 100 TCP SYN packets without ACK trong 10 giây. & High \\ \hline
-        RULE-004 & Suspicious DNS Query & Signature-based & DNS query khớp domain blacklist như \texttt{chatgpt.com}, \texttt{gemini.google.com}, \texttt{claude.ai}. & Medium \\ \hline
-        RULE-005 & DNS Tunneling & \makecell[l]{Behavior/\\anomaly-based} & $\geq$ 5 DNS query đáng ngờ từ cùng source trong 30 giây. & Medium \\ \hline
+        RULE-004 & DNS Tunneling & \makecell[l]{Behavior/\\anomaly-based} & $\geq$ 5 DNS query đáng ngờ từ cùng source trong 30 giây. & Medium \\ \hline
     \end{tabular}
     \caption{Các detection rules tích hợp trong prototype}
 \end{table}

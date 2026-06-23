@@ -21,23 +21,9 @@ class SuricataRuleEngine:
 
     @classmethod
     def from_config(cls, config: RuleConfig) -> "SuricataRuleEngine":
-        parsed = list(SuricataRuleParser.parse_many(cls._suspicious_dns_rules(config)))
-        parsed.extend(SuricataRuleParser.parse_many(config.suricata_rules))
+        parsed = list(SuricataRuleParser.parse_many(config.suricata_rules))
         parsed.extend(SuricataRuleParser.from_signature(sig) for sig in config.signatures)
         return cls(parsed)
-
-    @staticmethod
-    def _suspicious_dns_rules(config: RuleConfig) -> tuple[str, ...]:
-        rules: list[str] = []
-        for domain in sorted(config.suspicious_domains):
-            escaped_domain = re.escape(domain.lower())
-            rules.append(
-                'alert dns any any -> any 53 '
-                '(msg:"Suspicious DNS Query"; dns.query; '
-                f'pcre:"/(^|\\.){escaped_domain}\\.?$/i"; '
-                'classtype:bad-unknown; priority:2; sid:RULE-004; rev:1;)'
-            )
-        return tuple(rules)
 
     def evaluate(self, event: PacketEvent) -> list[Alert]:
         self._eval_count += 1

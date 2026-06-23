@@ -235,7 +235,7 @@ class SlidingWindowRules:
 
         return self._alert_once(
             now=event.timestamp,
-            rule_id="RULE-005",
+            rule_id="RULE-004",
             key=event.src_ip or "unknown",
             attack_type="DNS Tunneling Suspicion",
             detection_method="anomaly",

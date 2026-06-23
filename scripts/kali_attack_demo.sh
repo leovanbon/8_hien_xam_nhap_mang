@@ -39,17 +39,6 @@ run hping3 --icmp --fast -c 120 "$TARGET"
 
 run hping3 -S -p 80 --fast -c 120 "$TARGET"
 
-SUSPICIOUS_DOMAINS=(
-    "chatgpt.com"
-    "gemini.google.com"
-    "claude.ai"
-)
-
-for domain in "${SUSPICIOUS_DOMAINS[@]}"; do
-    run dig +short +time=1 +tries=1 "$domain" @"${DNS_SERVER}"
-    sleep 0.3
-done
-
 TUNNEL_LABELS=(
     "aGVsbG93b3JsZGhlbGxvd29ybGRoZWxsb3dvcmxkaGVsbG93b3JsZA"
     "dGhpcWlzYXZlcnlsb25nc3ViZG9tYWlubGFiZWxmb3J0ZXN0aW5n"

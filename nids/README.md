@@ -80,9 +80,7 @@ Current built-in rules:
 - `RULE-001` Port Scan (`detection_method: behavior`)
 - `RULE-002` ICMP Ping Flood (`detection_method: behavior`)
 - `RULE-003` TCP SYN Flood (`detection_method: behavior`, SYN without ACK)
-- `RULE-004` Suspicious DNS Query (`detection_method: signature`, built-in
-  DNS signature rules for `chatgpt.com`, `gemini.google.com`, and `claude.ai`)
-- `RULE-005` DNS Tunneling Suspicion (`detection_method: anomaly`)
+- `RULE-004` DNS Tunneling Suspicion (`detection_method: anomaly`)
 
 The DNS tunneling detector marks a query suspicious when it sees long query
 names, long labels, or high-entropy labels, then alerts after enough suspicious
@@ -146,9 +144,9 @@ rules = SlidingWindowRules(
 )
 ```
 
-The suspicious DNS blacklist is compiled into built-in Suricata-style subset
-signature rules. To load additional signatures, pass Suricata-style subset rule
-strings through `RuleConfig.suricata_rules`.
+DNS blacklist matching should be loaded as a Suricata-style subset signature
+rule through `RuleConfig.suricata_rules`; it is not one of the built-in behavior
+or anomaly rules.
 
 ## Adding A New Behavior Detector
 

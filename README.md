@@ -20,7 +20,6 @@ implementation.
   - TCP port scans
   - ICMP ping floods
   - TCP SYN floods using SYN packets without ACK
-  - Suspicious DNS domains through built-in DNS signature rules
   - DNS tunneling suspicion
 - Parses and evaluates user-provided Suricata-style subset rules for common
   payload, HTTP, and DNS signatures.
@@ -150,10 +149,10 @@ The rule engine has two layers:
   scans.
 - A Suricata-style subset parser and matcher for signature rules.
 
-The built-in suspicious DNS blacklist is compiled into Suricata-style subset
-signature rules. Additional Suricata-style subset rule text can be passed
-through `RuleConfig.suricata_rules`, which makes it possible to keep behavior
-detections enabled while loading a separate signature ruleset.
+Suricata-style subset rule text can be passed through
+`RuleConfig.suricata_rules`, which makes it possible to keep behavior detections
+enabled while loading a separate signature ruleset. DNS blacklist matching is
+handled as a custom signature rule, not as a built-in behavior detector.
 
 ### Detection Rule Defaults
 
@@ -166,10 +165,7 @@ loaded. They are lab/demo values, not production thresholds:
   10 seconds (`detection_method: behavior`).
 - `RULE-003` TCP SYN Flood: 100 TCP SYN packets without ACK from one source to
   one destination service in 10 seconds (`detection_method: behavior`).
-- `RULE-004` Suspicious DNS Query: DNS signature exact or subdomain match
-  against `chatgpt.com`, `gemini.google.com`, or `claude.ai`
-  (`detection_method: signature`).
-- `RULE-005` DNS Tunneling Suspicion: 5 suspicious DNS queries from one source
+- `RULE-004` DNS Tunneling Suspicion: 5 suspicious DNS queries from one source
   in 30 seconds. A DNS query is suspicious if it has a query name of at least
   100 characters, a label of at least 45 characters, or a label of at least 24
   characters with Shannon entropy of at least 3.8
@@ -271,7 +267,7 @@ Alerts are written as JSON objects, one per line:
 }
 ```
 
-Built-in rule `detection_method` values are `behavior`, `ioc`, and `anomaly`.
+Built-in rule `detection_method` values are `behavior` and `anomaly`.
 Rules loaded through `RuleConfig.suricata_rules` use `signature`.
 
 `priority` maps to severity:

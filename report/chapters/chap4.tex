@@ -80,17 +80,14 @@ hping3 -S -p 80 -c 120 -i u5000 <TARGET_IP>
 
 Tùy chọn \texttt{-S} tạo TCP SYN without ACK, còn \texttt{-i u5000} bảo đảm tốc độ đủ cao cho threshold demo. Kết quả mong đợi là cảnh báo \textbf{RULE-003 TCP SYN Flood}. Trong phạm vi đồ án, hệ thống chỉ cảnh báo dựa trên số lượng gói SYN without ACK từ cùng nguồn, chưa kiểm tra trạng thái hoàn tất kết nối ở mức TCP stream đầy đủ.
 
-\subsection{DNS đáng ngờ và DNS tunneling}
-Kịch bản DNS gồm hai nhóm: truy vấn tên miền nằm trong danh sách đáng ngờ và truy vấn có nhãn dài/entropy cao.
+\subsection{DNS tunneling}
+Kịch bản DNS tạo các truy vấn có nhãn dài/entropy cao.
 
 \begin{lstlisting}[language=bash]
-dig chatgpt.com
-dig gemini.google.com
-dig claude.ai
 dig aGVsbG93b3JsZGhlbGxvd2...tunnel.example.com
 \end{lstlisting}
 
-Kết quả mong đợi là \textbf{RULE-004 Suspicious DNS Query} từ luật chữ ký DNS mặc định khi tên miền khớp blacklist và \textbf{RULE-005 DNS Tunneling Suspicion} khi có đủ số truy vấn bất thường trong cửa sổ thời gian.
+Kết quả mong đợi là \textbf{RULE-004 DNS Tunneling Suspicion} khi có đủ số truy vấn bất thường trong cửa sổ thời gian.
 
 Rule DNS tunneling có thể false positive với một số domain hợp lệ như CDN, tracking, DKIM, ACME challenge hoặc service discovery. Trong thực tế nên kết hợp thêm whitelist, NXDOMAIN rate, số lượng unique subdomain, qtype và reputation của base domain.
 
@@ -111,7 +108,7 @@ Trong môi trường lab, các kịch bản trên kiểm tra được các nhóm
 
 \begin{itemize}
     \item Luật hành vi phát hiện các mẫu dựa trên tần suất và số lượng sự kiện trong thời gian ngắn.
-    \item Luật signature phát hiện domain blacklist và các chuỗi đặc trưng trong HTTP hoặc payload thô.
+    \item Luật signature phát hiện các chuỗi đặc trưng trong HTTP hoặc payload thô.
     \item Dashboard hiển thị được số lượng cảnh báo, mức độ nghiêm trọng, IP nguồn và danh sách cảnh báo gần nhất.
 \end{itemize}
 
@@ -127,8 +124,7 @@ Do chưa có log chạy lab cuối cùng trong báo cáo này, bảng dưới đ
         Port scan & RULE-001 & TODO: điền số thực tế & unique ports, count & Trigger khi $\geq$ 20 ports/10 giây. \\ \hline
         ICMP flood & RULE-002 & TODO: điền số thực tế & icmp count & Trigger khi $\geq$ 100 requests/10 giây. \\ \hline
         SYN flood & RULE-003 & TODO: điền số thực tế & syn count & SYN without ACK. \\ \hline
-        Suspicious DNS & RULE-004 & TODO: điền số thực tế & DNS signature match & domain blacklist. \\ \hline
-        DNS tunneling & RULE-005 & TODO: điền số thực tế & query, reason counts, count & $\geq$ 5 suspicious queries/30 giây. \\ \hline
+        DNS tunneling & RULE-004 & TODO: điền số thực tế & query, reason counts, count & $\geq$ 5 suspicious queries/30 giây. \\ \hline
         HTTP signature & \texttt{custom.rules} & TODO: điền số thực tế & matched content/User-Agent & Suricata-style subset. \\ \hline
     \end{tabular}
     \caption{Bảng kết quả thực nghiệm cần hoàn thiện sau khi chạy lab}

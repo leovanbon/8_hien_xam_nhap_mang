@@ -1,7 +1,7 @@
 # NIDS Demo Execution Guide
 
 Follow these exact steps during your presentation to demonstrate behavior,
-anomaly, built-in DNS signature, and Suricata-style signature rules working together in an
+anomaly, and Suricata-style signature rules working together in an
 isolated lab. Do not run the flood commands on networks or systems you do not
 own or have explicit permission to test.
 
@@ -42,13 +42,12 @@ chmod +x kali_attack_demo.sh
 sudo ./kali_attack_demo.sh <WINDOWS_VM_IP>
 ```
 
-*   The script will systematically run through 6 lab scenarios:
+*   The script will systematically run through 5 lab scenarios:
     1.  **Port Scan (Nmap):** Triggers Behavior RULE-001.
     2.  **ICMP Ping Flood (Hping3):** Triggers behavior RULE-002.
     3.  **TCP SYN Flood (Hping3):** Triggers behavior RULE-003 using SYN packets without ACK.
-    4.  **Suspicious DNS (Dig):** Triggers built-in DNS signature RULE-004.
-    5.  **DNS Tunneling (Dig):** Triggers anomaly RULE-005.
-    6.  **HTTP Signature Attacks (Curl):** Triggers your `custom.rules` Suricata-style subset signatures (SQL Injection and sqlmap).
+    4.  **DNS Tunneling (Dig):** Triggers anomaly RULE-004.
+    5.  **HTTP Signature Attacks (Curl):** Triggers your `custom.rules` Suricata-style subset signatures (SQL Injection and sqlmap).
 
 ## Step 4: Show the Results
 1.  **Host Terminal:** You will see the NIDS printing out the alerts in real-time as the Kali script progresses.

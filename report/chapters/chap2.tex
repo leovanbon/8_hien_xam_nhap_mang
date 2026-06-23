@@ -94,8 +94,8 @@ Quét cổng là bước thăm dò nhằm xác định dịch vụ đang mở tr
 \subsection{ICMP Flood và SYN Flood}
 ICMP Flood tạo lượng lớn gói Echo Request để tiêu tốn băng thông hoặc tài nguyên xử lý. SYN Flood tạo nhiều yêu cầu TCP SYN chưa hoàn tất kết nối. Cả hai đều được phát hiện bằng bộ đếm theo nguồn trong cửa sổ thời gian.
 
-\subsection{DNS độc hại và DNS Tunneling}
-DNS có thể bị lợi dụng để truy vấn tên miền độc hại hoặc truyền dữ liệu ra ngoài thông qua các nhãn dài, khó đọc, entropy cao. Trong đồ án, truy vấn khớp domain mẫu như \texttt{chatgpt.com}, \texttt{gemini.google.com} hoặc \texttt{claude.ai} được triển khai bằng luật chữ ký DNS mặc định trong signature engine, không nằm trong nhóm luật sliding-window. Ngược lại, DNS tunneling được nhận diện bằng dấu hiệu bất thường của chuỗi truy vấn trong cửa sổ thời gian.
+\subsection{DNS Tunneling}
+DNS có thể bị lợi dụng để truyền dữ liệu ra ngoài thông qua các nhãn dài, khó đọc, entropy cao. Trong đồ án, DNS tunneling được nhận diện bằng dấu hiệu bất thường của chuỗi truy vấn trong cửa sổ thời gian. Các truy vấn khớp domain blacklist có thể được bổ sung bằng luật chữ ký tùy chỉnh, nhưng không nằm trong nhóm rule mặc định.
 
 \subsection{Tấn công HTTP dựa trên chữ ký}
 Một số payload tấn công web có thể được nhận diện bằng nội dung trong URI, User-Agent hoặc body HTTP. Demo sử dụng luật tùy chỉnh để phát hiện chuỗi SQL Injection cơ bản và User-Agent của \texttt{sqlmap}.
