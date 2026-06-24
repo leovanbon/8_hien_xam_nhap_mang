@@ -1,8 +1,8 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.24)  24 JUN 2026 13:17
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.24)  24 JUN 2026 22:54
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**main.tex\
+**./main.tex
 (main.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
@@ -1181,12 +1181,75 @@ File: lstlang1.sty 2025/11/14 1.11b listings language file
 
 (chapters/chap4.tex
 Chương 4.
+
+Underfull \hbox (badness 2932) in paragraph at lines 21--21
+[]|\TU/lmr/m/n/10 Windows 11 / Ubuntu
+ []
+
+
+Underfull \hbox (badness 1533) in paragraph at lines 21--21
+\TU/lmr/m/n/10 3.10+, Scapy), Flask Web
+ []
+
+
+Underfull \hbox (badness 7238) in paragraph at lines 22--22
+[]|\TU/lmr/bx/n/10 Kali VM (At-
+ []
+
+
+Underfull \hbox (badness 4454) in paragraph at lines 22--22
+[]|\TU/lmr/m/n/10 Giả lập tấn công (\TU/lmtt/m/n/10 nmap\TU/lmr/m/n/10 ,
+ []
+
+
+Underfull \hbox (badness 2932) in paragraph at lines 23--23
+[]|\TU/lmr/m/n/10 Windows 10 / Ubuntu
+ []
+
+
+Underfull \hbox (badness 1796) in paragraph at lines 23--23
+[]|\TU/lmr/m/n/10 Nhận lưu lượng kiểm thử
+ []
+
+
+Underfull \hbox (badness 4328) in paragraph at lines 23--23
+\TU/lmr/m/n/10 (Chạy HTTP Server trên
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 24--24
+[]|\TU/lmr/m/n/10 Subnet:
+ []
+
+
+Overfull \hbox (21.54718pt too wide) in paragraph at lines 18--26
+ [][] 
+ []
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
 [18
 
 
 
 
-] [19] (D:\Program_file\tex/latex/listings\lstlang1.sty
+] [19]
+Overfull \hbox (29.53532pt too wide) in paragraph at lines 100--101
+[][] 
+ []
+
+[20] [21]
+LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <10.95> not available
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 157.
+ [22]
+Overfull \hbox (85.01239pt too wide) in paragraph at lines 191--192
+[]\TU/lmr/bx/n/10.95 Kết quả mong đợi: \TU/lmr/m/n/10.95 Mặc dù đầu vào được mã
+ hóa dưới dạng URL-encoded (\TU/lmtt/m/n/10.95 %27%20OR%20%271%27%3D%271\TU/lmr
+/m/n/10.95 ),
+ []
+
+[23] (D:\Program_file\tex/latex/listings\lstlang1.sty
 File: lstlang1.sty 2025/11/14 1.11b listings language file
 )
 (D:\Program_file\tex/latex/listings\lstlang2.sty
@@ -1202,7 +1265,7 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.111 ...ption={Bản ghi JSONL cảnh báo Port Scan}]
+l.247 ...ption={Bản ghi JSONL cảnh báo Port Scan}]
                                                   
 The following languages weren't loadable:
     ,json$
@@ -1215,7 +1278,7 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.111 ...ption={Bản ghi JSONL cảnh báo Port Scan}]
+l.247 ...ption={Bản ghi JSONL cảnh báo Port Scan}]
                                                   
 The language is not loadable. Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
@@ -1236,7 +1299,7 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.131 ...tion={Bản ghi JSONL cảnh báo ICMP Flood}]
+l.266 ...tion={Bản ghi JSONL cảnh báo ICMP Flood}]
                                                   
 The following languages weren't loadable:
     ,json$
@@ -1249,12 +1312,12 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.131 ...tion={Bản ghi JSONL cảnh báo ICMP Flood}]
+l.266 ...tion={Bản ghi JSONL cảnh báo ICMP Flood}]
                                                   
 The language is not loadable. Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
 
-[20] (D:\Program_file\tex/latex/listings\lstlang1.sty
+[24] (D:\Program_file\tex/latex/listings\lstlang1.sty
 File: lstlang1.sty 2025/11/14 1.11b listings language file
 )
 (D:\Program_file\tex/latex/listings\lstlang2.sty
@@ -1270,7 +1333,7 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.150 ...n={Bản ghi JSONL cảnh báo TCP SYN Flood}]
+l.284 ...n={Bản ghi JSONL cảnh báo TCP SYN Flood}]
                                                   
 The following languages weren't loadable:
     ,json$
@@ -1283,7 +1346,7 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.150 ...n={Bản ghi JSONL cảnh báo TCP SYN Flood}]
+l.284 ...n={Bản ghi JSONL cảnh báo TCP SYN Flood}]
                                                   
 The language is not loadable. Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
@@ -1304,7 +1367,7 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.173 ...n={Bản ghi JSONL cảnh báo DNS Tunneling}]
+l.306 ...n={Bản ghi JSONL cảnh báo DNS Tunneling}]
                                                   
 The following languages weren't loadable:
     ,json$
@@ -1317,25 +1380,98 @@ See the Listings package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.173 ...n={Bản ghi JSONL cảnh báo DNS Tunneling}]
+l.306 ...n={Bản ghi JSONL cảnh báo DNS Tunneling}]
                                                   
 The language is not loadable. Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
 
-[21]) [22]
+[25] (D:\Program_file\tex/latex/listings\lstlang1.sty
+File: lstlang1.sty 2025/11/14 1.11b listings language file
+)
+(D:\Program_file\tex/latex/listings\lstlang2.sty
+File: lstlang2.sty 2025/11/14 1.11b listings language file
+)
+(D:\Program_file\tex/latex/listings\lstlang3.sty
+File: lstlang3.sty 2025/11/14 1.11b listings language file
+)
+
+! Package Listings Error: Couldn't load requested language.
+
+See the Listings package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.340 ...={Bản ghi JSONL cảnh báo sqlmap scanner}]
+                                                  
+The following languages weren't loadable:
+    ,json$
+This may cause errors in the sequel.
+
+
+! Package Listings Error: language json undefined.
+
+See the Listings package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.340 ...={Bản ghi JSONL cảnh báo sqlmap scanner}]
+                                                  
+The language is not loadable. Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+(D:\Program_file\tex/latex/listings\lstlang1.sty
+File: lstlang1.sty 2025/11/14 1.11b listings language file
+)
+(D:\Program_file\tex/latex/listings\lstlang2.sty
+File: lstlang2.sty 2025/11/14 1.11b listings language file
+)
+(D:\Program_file\tex/latex/listings\lstlang3.sty
+File: lstlang3.sty 2025/11/14 1.11b listings language file
+)
+
+! Package Listings Error: Couldn't load requested language.
+
+See the Listings package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.369 ...ản ghi JSONL cảnh báo SQL Injection GET}]
+                                                  
+The following languages weren't loadable:
+    ,json$
+This may cause errors in the sequel.
+
+
+! Package Listings Error: language json undefined.
+
+See the Listings package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.369 ...ản ghi JSONL cảnh báo SQL Injection GET}]
+                                                  
+The language is not loadable. Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+[26]
+Overfull \hbox (2.6494pt too wide) in paragraph at lines 406--420
+ [][] 
+ []
+
+[27] [28]) [29]
 \openout2 = `chapters/chap5.aux'.
 
  (chapters/chap5.tex
 Chương 5.
-[23
+[30
 
 
 
 
-]) [24]
+]) [31]
 \openout2 = `appendix.aux'.
 
- (appendix.tex [25
+ (appendix.tex [32
 
 
 
@@ -1351,7 +1487,7 @@ Overfull \hbox (7.3208pt too wide) in paragraph at lines 81--89
  [][] 
  []
 
-) [26] [27]
+) [33] [34]
 \openout2 = `references.aux'.
 
  (references.tex
@@ -1360,7 +1496,7 @@ Underfull \hbox (badness 1762) in paragraph at lines 36--37
 r/m/n/10.95 . Truy cập trực tuyến tại: [][]$[][][][][] [] [] [] [][][][][] []
  []
 
-) [28
+) [35
 
 
 
@@ -1376,15 +1512,15 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 629D8CD10C65E3768BAE1A9C0A00F87E;12811.
+(rerunfilecheck)             Checksum: 7CC161B9EF62F54532316019105A3E93;15392.
  ) 
 Here is how much of TeX's memory you used:
- 31132 strings out of 402987
- 609981 string characters out of 5454527
- 1575912 words of memory out of 5000000
- 59265 multiletter control sequences out of 15000+600000
- 633542 words of font info for 83 fonts, out of 8000000 for 9000
+ 31217 strings out of 402987
+ 611474 string characters out of 5454527
+ 1618313 words of memory out of 5000000
+ 59331 multiletter control sequences out of 15000+600000
+ 634636 words of font info for 93 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 103i,17n,107p,716b,1976s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 102i,17n,107p,717b,1976s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (29 pages).
+Output written on main.pdf (36 pages).
