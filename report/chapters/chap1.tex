@@ -1,39 +1,36 @@
 \chapter{Giới thiệu đề tài}
 
 \section{Bối cảnh và lý do chọn đề tài}
-Trong các hệ thống mạng hiện đại, tường lửa chỉ là một lớp bảo vệ ban đầu. Nhiều cuộc tấn công vẫn đi qua các cổng hợp lệ như HTTP, DNS hoặc HTTPS, sau đó khai thác điểm yếu ở tầng ứng dụng hoặc tạo ra các hành vi bất thường trong mạng nội bộ. Vì vậy, hệ thống phát hiện xâm nhập mạng (Network Intrusion Detection System -- NIDS) là một thành phần quan trọng để giám sát lưu lượng, phát hiện dấu hiệu tấn công và hỗ trợ quản trị viên phản ứng kịp thời.
+Trong các hệ thống mạng hiện đại, tường lửa chỉ là một lớp bảo vệ ban đầu. Nhiều cuộc tấn công vẫn đi qua các cổng hợp lệ như HTTP, DNS hoặc HTTPS, sau đó khai thác điểm yếu ở tầng ứng dụng hoặc tạo ra các hành vi bất thường trong mạng nội bộ. Vì vậy, hệ thống phát hiện xâm nhập mạng NIDS là một thành phần quan trọng để giám sát lưu lượng, phát hiện dấu hiệu tấn công và hỗ trợ quản trị viên phản ứng kịp thời.
 
-Đề tài này tập trung xây dựng một NIDS nhỏ gọn bằng Python nhằm minh họa các thành phần cốt lõi của một hệ thống phát hiện xâm nhập: thu thập gói tin, chuẩn hóa dữ liệu, phát hiện theo hành vi, phát hiện theo chữ ký, lưu trữ cảnh báo và hiển thị qua dashboard. Mục tiêu chính là phục vụ học tập và trình diễn kỹ thuật, không hướng tới thay thế các hệ thống sản xuất như Suricata hoặc Zeek.
+Đề tài này tập trung xây dựng một hệ thống NIDS nhỏ gọn bằng ngôn ngữ Python nhằm minh họa các thành phần cốt lõi của một hệ thống phát hiện xâm nhập: thu thập gói tin, chuẩn hóa dữ liệu, phát hiện theo hành vi, phát hiện theo chữ ký, lưu trữ cảnh báo và hiển thị qua giao diện Dashboard. Mục tiêu chính là phục vụ học tập và trình diễn kỹ thuật, không hướng tới thay thế các hệ thống thương mại lớn như Suricata hoặc Zeek.
 
 \section{Mục tiêu đề tài}
 Bài tập đặt ra các mục tiêu sau:
-
 \begin{itemize}
-    \item \textbf{Thu thập và chuẩn hóa gói tin:} đọc lưu lượng từ tệp PCAP hoặc giao diện mạng trực tiếp bằng Scapy, sau đó chuyển đổi thành cấu trúc sự kiện thống nhất.
-    \item \textbf{Phát hiện theo hành vi:} triển khai các luật dựa trên cửa sổ thời gian để nhận diện quét cổng, ICMP flood, TCP SYN flood và dấu hiệu DNS tunneling.
-    \item \textbf{Phát hiện theo chữ ký/IOC:} xây dựng bộ phân tích cú pháp cho một tập con cú pháp kiểu Suricata và kiểm tra các mẫu IOC như domain blacklist hoặc truy vấn DNS đã biết.
-    \item \textbf{Ghi nhận và trực quan hóa cảnh báo:} lưu cảnh báo dưới dạng JSON Lines và hiển thị thống kê qua giao diện Flask.
-    \item \textbf{Kiểm thử trong môi trường lab:} mô phỏng các luồng tấn công phổ biến bằng Kali Linux để đánh giá khả năng kích hoạt cảnh báo của hệ thống.
+    \item \textbf{Thu thập và chuẩn hóa gói tin:} Đọc lưu lượng từ tệp PCAP hoặc giao diện mạng trực tiếp bằng thư viện Scapy, sau đó chuyển đổi thành cấu trúc sự kiện thống nhất.
+    \item \textbf{Phát hiện theo hành vi:} Triển khai các luật dựa trên cửa sổ thời gian để nhận diện quét cổng, ICMP flood, TCP SYN flood và dấu hiệu DNS tunneling.
+    \item \textbf{Phát hiện theo chữ ký và Chỉ số thỏa hiệp IOC:} Xây dựng bộ phân tích cú pháp cho một tập con cú pháp kiểu Suricata và kiểm tra các mẫu chỉ số thỏa hiệp IOC như danh sách đen tên miền hoặc truy vấn DNS đã biết.
+    \item \textbf{Ghi nhận và trực quan hóa cảnh báo:} Lưu cảnh báo dưới dạng JSON Lines và hiển thị thống kê qua giao diện web Flask.
+    \item \textbf{Kiểm thử trong môi trường thực nghiệm:} Mô phỏng các luồng tấn công phổ biến bằng công cụ tấn công trên hệ điều hành Kali Linux để đánh giá khả năng kích hoạt cảnh báo của hệ thống.
 \end{itemize}
 
 \section{Đối tượng và phạm vi nghiên cứu}
-Đối tượng nghiên cứu là hệ thống phát hiện xâm nhập mạng dạng thụ động. Hệ thống quan sát lưu lượng, tạo cảnh báo và phục vụ phân tích, nhưng không trực tiếp chặn gói tin hoặc ngắt phiên kết nối như một hệ thống IPS.
+Đối tượng nghiên cứu là hệ thống phát hiện xâm nhập mạng dạng thụ động. Hệ thống quan sát lưu lượng, tạo cảnh báo và phục vụ phân tích, nhưng không trực tiếp chặn gói tin hoặc ngắt phiên kết nối như một hệ thống ngăn chặn xâm nhập IPS.
 
 Phạm vi triển khai của bài tập lớn được giới hạn như sau:
-
 \begin{itemize}
-    \item Hệ thống xử lý các trường thông tin phổ biến của IP, TCP, UDP, ICMP và DNS.
-    \item Phần phát hiện hành vi sử dụng ngưỡng tĩnh và cửa sổ trượt thời gian; các ngưỡng này là giá trị lab/demo, cần hiệu chỉnh theo baseline từng mạng thực tế.
-    \item Phần chữ ký hỗ trợ một \textit{Suricata-style subset}, đủ cho tình huống demo khớp domain IOC mẫu trong truy vấn DNS.
-    \item Hệ thống chưa giải mã TLS/HTTPS, chưa tái tạo đầy đủ TCP stream và chưa được tối ưu cho lưu lượng mạng tốc độ cao.
+    \item Hệ thống xử lý các trường thông tin phổ biến của giao thức IP, TCP, UDP, ICMP và DNS.
+    \item Phần phát hiện hành vi sử dụng ngưỡng tĩnh và cửa sổ trượt thời gian; các ngưỡng này là các giá trị lab/demo, cần hiệu chỉnh theo đặc tính của từng mạng thực tế.
+    \item Phần chữ ký hỗ trợ một Suricata-style subset, đủ cho tình huống demo khớp tên miền chỉ số thỏa hiệp IOC mẫu trong truy vấn DNS.
+    \item Hệ thống chưa giải mã TLS hoặc HTTPS, chưa tái tạo đầy đủ luồng dữ liệu TCP stream và chưa được tối ưu cho lưu lượng mạng tốc độ cao.
 \end{itemize}
 
 \section{Phương pháp thực hiện}
 Đề tài được triển khai theo hướng kết hợp lý thuyết và thực nghiệm:
-
 \begin{itemize}
     \item Nghiên cứu các cơ chế IDS cơ bản, đặc biệt là phát hiện theo chữ ký và phát hiện theo hành vi.
-    \item Thiết kế kiến trúc pipeline gồm các khối capture, parser, detection engine, storage và dashboard.
+    \item Thiết kế kiến trúc dạng đường ống dẫn dữ liệu gồm các khối thu thập gói tin, bộ giải mã và phân tích cú pháp, động cơ luật phát hiện, bộ lưu trữ và giao diện hiển thị.
     \item Cài đặt từng module bằng Python, sử dụng Scapy cho xử lý gói tin và Flask cho giao diện web.
     \item Viết luật kiểm thử và kịch bản tấn công mô phỏng để kiểm tra kết quả cảnh báo.
     \item Đối chiếu kết quả với phạm vi đã đặt ra, đồng thời chỉ ra hạn chế còn tồn tại.
@@ -41,11 +38,10 @@ Phạm vi triển khai của bài tập lớn được giới hạn như sau:
 
 \section{Bố cục báo cáo}
 Báo cáo gồm 5 chương:
-
 \begin{itemize}
     \item \textbf{Chương 1: Giới thiệu đề tài} -- trình bày bối cảnh, mục tiêu, phạm vi và phương pháp thực hiện.
-    \item \textbf{Chương 2: Cơ sở lý thuyết} -- tóm tắt các khái niệm IDS/IPS, NIDS, phát hiện theo chữ ký và phát hiện theo hành vi.
-    \item \textbf{Chương 3: Kiến trúc và triển khai hệ thống} -- mô tả các module chính và cách dữ liệu đi qua hệ thống.
-    \item \textbf{Chương 4: Kịch bản thử nghiệm và đánh giá} -- trình bày môi trường lab, các kịch bản tấn công và kết quả quan sát.
+    \item \textbf{Chương 2: Cơ sở lý thuyết} -- tóm tắt các khái niệm IDS, NIDS, thuật toán so khớp chữ ký và phát hiện theo hành vi.
+    \item \textbf{Chương 3: Kiến trúc và triển khai hệ thống} -- mô tả các module chính, cơ chế bộ giải mã chuẩn hóa dữ liệu và cách dữ liệu đi qua hệ thống.
+    \item \textbf{Chương 4: Kịch bản thử nghiệm và đánh giá} -- trình bày môi trường phòng thí nghiệm, các kịch bản tấn công và phân tích cấu trúc nhật ký cảnh báo chi tiết.
     \item \textbf{Chương 5: Kết luận và hướng phát triển} -- tổng kết kết quả đạt được, hạn chế và hướng cải tiến.
 \end{itemize}

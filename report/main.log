@@ -1,8 +1,8 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.24)  24 JUN 2026 12:56
+This is XeTeX, Version 3.141592653-2.6-0.999997 (MiKTeX 25.12) (preloaded format=xelatex 2026.6.24)  24 JUN 2026 13:17
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**./main.tex
+**main.tex\
 (main.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
@@ -975,7 +975,7 @@ Package: algpseudocode
 Document Style - pseudocode environments for use with the `algorithmicx' style
 ) (main.aux (titlepage.aux) (preface.aux) (chapters/chap1.aux)
 (chapters/chap2.aux) (chapters/chap3.aux) (chapters/chap4.aux)
-(chapters/chap5.aux))
+(chapters/chap5.aux) (appendix.aux) (references.aux))
 \openout1 = `main.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 95.
@@ -1332,25 +1332,59 @@ Chương 5.
 
 
 
-]) [24] 
+]) [24]
+\openout2 = `appendix.aux'.
+
+ (appendix.tex [25
+
+
+
+
+
+]
+Underfull \hbox (badness 3635) in paragraph at lines 86--86
+[]|\TU/lmr/bx/n/8 Lắp ráp luồng
+ []
+
+
+Overfull \hbox (7.3208pt too wide) in paragraph at lines 81--89
+ [][] 
+ []
+
+) [26] [27]
+\openout2 = `references.aux'.
+
+ (references.tex
+Underfull \hbox (badness 1762) in paragraph at lines 36--37
+[]\TU/lmr/m/n/10.95 Scapy Project. \TU/lmr/m/it/10.95 Scapy Documentation\TU/lm
+r/m/n/10.95 . Truy cập trực tuyến tại: [][]$[][][][][] [] [] [] [][][][][] []
+ []
+
+) [28
+
+
+
+
+
+] 
 enddocument/afterlastpage (AED): lastpage setting LastPage.
 (main.aux (titlepage.aux) (preface.aux) (chapters/chap1.aux)
 (chapters/chap2.aux) (chapters/chap3.aux) (chapters/chap4.aux)
-(chapters/chap5.aux))
+(chapters/chap5.aux) (appendix.aux) (references.aux))
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: B4738B8B50F5550202CAB725082A50EA;11879.
+(rerunfilecheck)             Checksum: 629D8CD10C65E3768BAE1A9C0A00F87E;12811.
  ) 
 Here is how much of TeX's memory you used:
- 31049 strings out of 402987
- 608360 string characters out of 5454527
- 1577929 words of memory out of 5000000
- 59194 multiletter control sequences out of 15000+600000
- 633550 words of font info for 84 fonts, out of 8000000 for 9000
+ 31132 strings out of 402987
+ 609981 string characters out of 5454527
+ 1575912 words of memory out of 5000000
+ 59265 multiletter control sequences out of 15000+600000
+ 633542 words of font info for 83 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 102i,17n,107p,780b,1976s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 103i,17n,107p,716b,1976s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (25 pages).
+Output written on main.pdf (29 pages).

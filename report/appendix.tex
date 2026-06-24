@@ -1,0 +1,91 @@
+\clearpage
+\chapter*{Phụ lục}
+\addcontentsline{toc}{chapter}{Phụ lục}
+
+\section*{Phụ lục A: Hướng dẫn cài đặt và cấu hình hệ thống}
+Để triển khai và chạy thử nghiệm hệ thống NIDS trong môi trường thực tế hoặc phòng thí nghiệm, người sử dụng cần thực hiện các bước cấu hình hệ điều hành và cài đặt môi trường như sau:
+
+\subsection*{1. Cài đặt các thư viện phụ thuộc của hệ thống}
+Hệ thống yêu cầu cài đặt phiên bản Python 3.8 trở lên. Các thư viện phụ thuộc được quản lý thông qua tệp tin \texttt{requirements.txt} và có thể cài đặt bằng trình quản lý gói pip:
+\begin{lstlisting}[language=bash]
+# Tao moi moi truong ao python
+python3 -m venv .venv
+
+# Kich hoat moi truong ao tren Linux/macOS
+source .venv/bin/activate
+
+# Kich hoat moi truong ao tren Windows
+.venv\Scripts\activate
+
+# Cap nhat pip va cai dat cac thu vien phu thuoc
+pip install --upgrade pip
+pip install -r requirements.txt
+\end{lstlisting}
+
+\subsection*{2. Cấu hình quyền bắt gói tin trực tiếp trên Linux}
+Giao thức bắt gói tin trực tiếp trên card mạng yêu cầu tiến trình chạy dưới quyền quản trị tối cao root. Nếu chạy bằng tài khoản thông thường, thư viện Scapy sẽ báo lỗi không thể truy cập socket thô của hệ thống.
+\begin{lstlisting}[language=bash]
+# Chay engine NIDS voi quyen sudo tren Linux
+sudo .venv/bin/python main.py --iface eth0 --rules custom.rules
+\end{lstlisting}
+
+Để bắt gói tin ở chế độ promiscuous mode nhằm giám sát toàn bộ lưu lượng trong phân đoạn mạng chứ không chỉ các gói tin gửi trực tiếp đến máy chủ, ta cần kích hoạt tính năng này trên card mạng đích:
+\begin{lstlisting}[language=bash]
+# Kich hoat promiscuous mode cho card mang eth0
+sudo ip link set eth0 promisc on
+\end{lstlisting}
+
+\subsection*{3. Cấu hình hỗ trợ trên Windows}
+Trên hệ điều hành Windows, Scapy yêu cầu trình điều khiển Npcap hoặc WinPcap để có thể tương tác với card mạng ở tầng liên kết dữ liệu. Quy trình cài đặt bao gồm:
+\begin{enumerate}
+    \item Tải xuống trình cài đặt Npcap từ trang chủ chính thức.
+    \item Chạy trình cài đặt với quyền Administrator.
+    \item Trong quá trình cài đặt, tích chọn tùy chọn tương thích với WinPcap API để đảm bảo các thư viện Python cũ hoạt động ổn định.
+    \item Khởi động lại máy tính hoặc khởi động lại dịch vụ card mạng để trình điều khiển Npcap nhận dạng các giao diện mạng khả dụng.
+\end{enumerate}
+
+\section*{Phụ lục B: Danh sách mở rộng các luật chữ ký mẫu}
+Dưới đây là một số luật chữ ký mẫu được thiết kế theo cú pháp Suricata để nạp vào hệ thống nhằm mở rộng khả năng phát hiện các hành vi tấn công phổ biến:
+
+\subsection*{1. Luật phát hiện tấn công ứng dụng web SQL Injection}
+Luật dưới đây quét phần dữ liệu yêu cầu HTTP để tìm kiếm chuỗi ký tự tấn công SQL Injection cơ bản:
+\begin{lstlisting}[language=bash]
+alert tcp any any -> $HOME_NET $HTTP_PORTS (msg:"SQL Injection Attempt - UNION SELECT"; http.uri; content:"union"; nocase; content:"select"; nocase; sid:1000001; rev:1;)
+\end{lstlisting}
+Giải thích luật:
+\begin{itemize}
+    \item \texttt{http.uri}: Chỉ định bộ đệm dính URI của HTTP yêu cầu để đối sánh chuỗi.
+    \item \texttt{content:"union" ... content:"select"}: Yêu cầu cả hai chuỗi này phải xuất hiện đồng thời trong URI.
+    \item \texttt{nocase}: Không phân biệt chữ hoa hay chữ thường đối với các chuỗi tìm kiếm.
+\end{itemize}
+
+\subsection*{2. Luật phát hiện tấn công chèn mã kịch bản XSS}
+Luật dưới đây phát hiện hành vi chèn thẻ Script độc hại qua tham số URI:
+\begin{lstlisting}[language=bash]
+alert tcp any any -> $HOME_NET $HTTP_PORTS (msg:"XSS Attempt - Script Tag"; http.uri; content:"<script>"; nocase; sid:1000002; rev:1;)
+\end{lstlisting}
+
+\subsection*{3. Luật phát hiện truy cập tệp tin hệ thống nhạy cảm}
+Luật dưới đây phát hiện hành vi duyệt thư mục ngược để đọc tệp tin cấu hình mật khẩu hệ thống Linux:
+\begin{lstlisting}[language=bash]
+alert tcp any any -> $HOME_NET $HTTP_PORTS (msg:"Directory Traversal - etc/passwd Access"; http.uri; content:"etc/passwd"; nocase; sid:1000003; rev:1;)
+\end{lstlisting}
+
+\section*{Phụ lục C: Bảng so sánh các giải pháp IDS nguồn mở phổ biến}
+Bảng so sánh dưới đây cung cấp cái nhìn tổng quan về đặc tính kỹ thuật của các giải pháp phát hiện xâm nhập mạng mã nguồn mở phổ biến nhất hiện nay trên thế giới:
+
+\begin{table}[H]
+    \centering
+    \scriptsize
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{|m{2.5cm}|m{4.0cm}|m{4.0cm}|m{4.0cm}|}
+        \hline
+        \textbf{Tiêu chí} & \textbf{Snort} & \textbf{Suricata} & \textbf{Zeek} \\ \hline
+        \textbf{Kiến trúc xử lý} & Đơn luồng trong các phiên bản cũ, đa luồng được bổ sung ở phiên bản Snort 3. & Thiết kế đa luồng mặc định, tối ưu hóa xử lý song song trên CPU đa nhân. & Đơn luồng xử lý chính, hỗ trợ mô hình phân cụm cluster để chia tải trên nhiều luồng. \\ \hline
+        \textbf{Cơ chế phát hiện} & Dựa trên chữ ký và đối sánh mẫu chuỗi tĩnh là chủ yếu. & Dựa trên chữ ký tĩnh, có hỗ trợ các luật phân tích hành vi nâng cao. & Dựa trên phân tích giao thức có trạng thái và thực thi script lập trình động. \\ \hline
+        \textbf{Lắp ráp luồng TCP} & Có hỗ trợ thông qua các preprocessor tích hợp sẵn. & Có hỗ trợ với hiệu năng cao, xử lý tốt fragmentation và segmentation. & Hỗ trợ tái lắp ráp luồng mạnh mẽ để phân tích dữ liệu tầng ứng dụng. \\ \hline
+        \textbf{Định dạng luật} & Cú pháp luật dạng Snort cổ điển. & Tương thích hoàn toàn với cú pháp luật Snort, mở rộng thêm các từ khóa mới. & Sử dụng ngôn ngữ lập trình kịch bản hướng sự kiện của riêng Zeek. \\ \hline
+    \end{tabular}
+    \caption{Bảng so sánh các giải pháp IDS nguồn mở phổ biến}
+    \label{tab:ids_comparison}
+\end{table}
