@@ -103,6 +103,106 @@ dig +short <LONG_LABEL>.tunnel.example.com @8.8.8.8
 
 Kết quả mong đợi là cảnh báo signature-based \textbf{1000101 Custom DNS Query: example.com}. Luật này dùng \texttt{dns.query} và \texttt{content} để minh họa cơ chế nạp rule tùy chỉnh dạng \textit{Suricata-style subset}.
 
+\section{Phân tích cấu trúc nhật ký cảnh báo sinh ra (JSONL)}
+Dưới đây là cấu trúc chi tiết của các bản ghi cảnh báo (Alert) được NIDS tự động phát hiện và xuất ra tệp \texttt{alerts.jsonl}. Việc phân tích cấu trúc này giúp các kỹ sư an toàn thông tin hiểu rõ cơ chế thu thập chứng cứ (evidence collection) của hệ thống:
+
+\subsection{Cảnh báo hành vi: Quét cổng (Port Scan)}
+Bản ghi cảnh báo dưới đây minh họa kết quả khi phát hiện máy Kali Linux (\texttt{192.168.100.15}) quét cổng mục tiêu:
+\begin{lstlisting}[language=json, caption={Bản ghi JSONL cảnh báo Port Scan}]
+{
+  "timestamp": "2026-06-24T05:00:12.145Z",
+  "rule_id": "RULE-001",
+  "attack_type": "Port Scan",
+  "detection_method": "behavior",
+  "severity": "Medium",
+  "source_ip": "192.168.100.15",
+  "destination_ip": "192.168.100.20",
+  "description": "192.168.100.15 contacted 20 unique TCP ports in 10 seconds",
+  "evidence": {
+    "count": 20,
+    "unique_ports": [21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 993, 995, 1433, 1723, 3306, 3389, 5900, 8080]
+  }
+}
+\end{lstlisting}
+Trường \texttt{evidence} lưu giữ danh sách các cổng đã quét để phục vụ điều tra xem dịch vụ nhạy cảm nào của hệ thống có nguy cơ bị lộ lọt thông tin.
+
+\subsection{Cảnh báo hành vi: ICMP Ping Flood}
+Khi lưu lượng Ping từ một nguồn vượt quá 100 gói tin trong 10 giây, cảnh báo có dạng như sau:
+\begin{lstlisting}[language=json, caption={Bản ghi JSONL cảnh báo ICMP Flood}]
+{
+  "timestamp": "2026-06-24T05:01:45.321Z",
+  "rule_id": "RULE-002",
+  "attack_type": "ICMP Ping Flood",
+  "detection_method": "behavior",
+  "severity": "High",
+  "source_ip": "192.168.100.15",
+  "destination_ip": "192.168.100.20",
+  "description": "192.168.100.15 sent 100 ICMP packets in 10 seconds",
+  "evidence": {
+    "icmp_packets": 100
+  }
+}
+\end{lstlisting}
+Cảnh báo này có mức độ nghiêm trọng \texttt{High} vì nó đe dọa trực tiếp tới tính sẵn sàng (Availability) của thiết bị mạng.
+
+\subsection{Cảnh báo hành vi: TCP SYN Flood}
+Cảnh báo SYN Flood ghi nhận hành vi flood cờ SYN mà không hoàn thành cái bắt tay ba bước:
+\begin{lstlisting}[language=json, caption={Bản ghi JSONL cảnh báo TCP SYN Flood}]
+{
+  "timestamp": "2026-06-24T05:03:10.987Z",
+  "rule_id": "RULE-003",
+  "attack_type": "TCP SYN Flood",
+  "detection_method": "behavior",
+  "severity": "High",
+  "source_ip": "192.168.100.15",
+  "destination_ip": "192.168.100.20",
+  "description": "192.168.100.15 sent 100 SYN packets without ACK in 10 seconds",
+  "evidence": {
+    "dst_ip": "192.168.100.20",
+    "dst_port": 80,
+    "service_key": "192.168.100.15:192.168.100.20:80",
+    "syn_packets": 100,
+    "window_seconds": 10
+  }
+}
+\end{lstlisting}
+Thông tin chi tiết về cổng đích (\texttt{dst\_port = 80}) chỉ ra dịch vụ web đang là mục tiêu bị khai thác.
+
+\subsection{Cảnh báo bất thường: DNS Tunneling}
+Khi kẻ tấn công sử dụng công cụ tạo luồng đường truyền qua DNS, hệ thống phân tích Shannon Entropy và sinh cảnh báo:
+\begin{lstlisting}[language=json, caption={Bản ghi JSONL cảnh báo DNS Tunneling}]
+{
+  "timestamp": "2026-06-24T05:05:22.012Z",
+  "rule_id": "RULE-004",
+  "attack_type": "DNS Tunneling Suspicion",
+  "detection_method": "anomaly",
+  "severity": "Medium",
+  "source_ip": "192.168.100.15",
+  "destination_ip": "8.8.8.8",
+  "description": "192.168.100.15 sent 5 DNS queries with tunneling indicators in 30 seconds",
+  "evidence": {
+    "latest_query": "ahZsbG93b3JsZGhlbGxvd29ybGQ.tunnel.example.com",
+    "max_label_entropy": 4.276,
+    "max_label_length": 54,
+    "query_length": 65,
+    "reason_counts": {
+      "high_entropy_label": 5,
+      "long_label": 5,
+      "long_query_name": 5
+    },
+    "recent_queries": [
+      "aGVsbG93b3JsZGhlbGxvd2...1.tunnel.example.com",
+      "aGVsbG93b3JsZGhlbGxvd2...2.tunnel.example.com",
+      "aGVsbG93b3JsZGhlbGxvd2...3.tunnel.example.com",
+      "aGVsbG93b3JsZGhlbGxvd2...4.tunnel.example.com",
+      "aGVsbG93b3JsZGhlbGxvd2...5.tunnel.example.com"
+    ],
+    "suspicious_queries": 5
+  }
+}
+\end{lstlisting}
+Trường \texttt{max\_label\_entropy} và \texttt{reason\_counts} là bằng chứng toán học đắc lực giúp phân loại hành vi tunneling thay vì các truy vấn DNS hợp lệ bình thường.
+
 \section{Đánh giá kết quả}
 Trong môi trường lab, các kịch bản trên kiểm tra được các nhóm phát hiện chính:
 

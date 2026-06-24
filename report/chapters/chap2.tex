@@ -2,11 +2,15 @@
 \chapter{Cơ sở lý thuyết}
 
 \section{IDS, IPS và NIDS}
-Hệ thống phát hiện xâm nhập (Intrusion Detection System -- IDS) có nhiệm vụ thu thập và phân tích sự kiện bảo mật để phát hiện hành vi bất thường hoặc dấu hiệu tấn công. IDS thường hoạt động ở chế độ thụ động: hệ thống quan sát lưu lượng, ghi log và sinh cảnh báo, nhưng không trực tiếp can thiệp vào luồng dữ liệu.
+Hệ thống phát hiện xâm nhập (Intrusion Detection System -- IDS) là một giải pháp giám sát an ninh mạng có nhiệm vụ thu thập, phân tích thông tin từ các nguồn khác nhau trong hệ thống CNTT để phát hiện hành vi vi phạm chính sách bảo mật hoặc các dấu hiệu tấn công. IDS hoạt động theo cơ chế thụ động (passive mode): quan sát dữ liệu đi qua, ghi nhật ký (logging) và phát cảnh báo (alerting) đến quản trị viên mà không trực tiếp thay đổi hoặc can thiệp vào luồng gói tin thực tế.
 
-Hệ thống ngăn chặn xâm nhập (Intrusion Prevention System -- IPS) có phạm vi rộng hơn IDS vì được đặt inline trên đường truyền và có khả năng chặn gói tin, reset kết nối hoặc cập nhật luật tường lửa. Bài tập lớn này chỉ triển khai hướng IDS, tức là tập trung vào phát hiện và cảnh báo.
+Ngược lại với IDS, Hệ thống ngăn chặn xâm nhập (Intrusion Prevention System -- IPS) hoạt động ở chế độ chủ động (active mode). IPS thường được triển khai nằm trực tiếp trên đường truyền (inline). Khi phát hiện gói tin độc hại hoặc lưu lượng bất thường, IPS có khả năng can thiệp trực tiếp bằng cách hủy gói tin (drop), ngắt kết nối (reset TCP), hoặc cấu hình lại tường lửa để chặn IP nguồn của kẻ tấn công ngay lập tức. Trong phạm vi bài tập lớn này, nhóm tập trung nghiên cứu và triển khai theo hướng IDS để tối ưu hóa hiệu năng giám sát thụ động.
 
-Theo nguồn dữ liệu giám sát, IDS có thể được chia thành hai nhóm chính:
+Dựa trên nguồn dữ liệu và vị trí giám sát, IDS được chia thành hai trường phái chính:
+\begin{itemize}
+    \item \textbf{NIDS (Network-based IDS):} Giám sát toàn bộ lưu lượng mạng đi qua một hoặc nhiều phân đoạn mạng (network segments). NIDS thu thập dữ liệu bằng cách lắng nghe trực tiếp thông qua card mạng đặt ở chế độ hỗn tạp (promiscuous mode), hoặc qua cổng cấu hình Span/Mirror port trên Switch, hoặc thiết bị TAP vật lý. Ưu điểm của NIDS là tính độc lập cao, không làm ảnh hưởng đến hiệu năng của các máy chủ dịch vụ, và có khả năng giám sát đồng thời nhiều thiết bị trong mạng.
+    \item \textbf{HIDS (Host-based IDS):} Cài đặt trực tiếp dưới dạng các tác nhân (agents) trên từng hệ điều hành máy chủ hoặc máy trạm (endpoint). HIDS thu thập dữ liệu từ log hệ thống, log ứng dụng, tính toàn vẹn của các file cấu hình quan trọng (file integrity monitoring - FIM), các cuộc gọi hệ thống (system calls) và các tiến trình đang chạy. HIDS có ưu điểm lớn trong việc phát hiện các cuộc tấn công leo thang đặc quyền nội bộ hoặc các gói tin độc hại đã được giải mã ngay tại host, nhưng đòi hỏi tài nguyên cài đặt và quản lý phức tạp trên diện rộng.
+\end{itemize}
 
 \begin{figure}[H]
     \centering
@@ -54,59 +58,116 @@ Theo nguồn dữ liệu giám sát, IDS có thể được chia thành hai nhó
 
 Hệ thống trong bài tập là một NIDS dạng thụ động: đọc PCAP hoặc sniff interface, phân tích gói tin và ghi cảnh báo ra tệp JSONL.
 
-\section{Phát hiện theo chữ ký và IOC}
-Phát hiện theo chữ ký (Signature-based Detection) so khớp lưu lượng với các mẫu đã biết. Mẫu có thể là chuỗi trong payload, biểu thức chính quy, truy vấn DNS, domain trong blacklist/IOC hoặc tổ hợp điều kiện trong header gói tin. Cách tiếp cận này phù hợp để nhận diện các dấu hiệu đã biết như tên miền độc hại, domain phục vụ kiểm thử, hoặc payload có cấu trúc đặc trưng.
+\section{Phát hiện theo chữ ký và Chỉ số thỏa hiệp (IOC)}
+Phát hiện theo chữ ký (Signature-based Detection) là phương pháp đối sánh dữ liệu lưu lượng mạng với một tập hợp các mẫu (signatures) hoặc luật (rules) đã được định nghĩa trước về hành vi độc hại. Các chữ ký này thường được trích xuất từ các Chỉ số thỏa hiệp (Indicators of Compromise -- IOC) bao gồm: chuỗi nhị phân đặc trưng của mã độc (malware signature), địa chỉ IP thuộc mạng botnet, tên miền độc hại của máy chủ điều khiển (C2 server), hoặc các mẫu chuỗi ký tự trong giao thức ứng dụng.
 
-Một luật Suricata/Snort-like thường gồm hai phần:
+Ưu điểm lớn nhất của phương pháp này là tốc độ xử lý nhanh đối với các cuộc tấn công đã biết, tỷ lệ cảnh báo sai (false positive) cực thấp và cung cấp thông tin chi tiết về loại tấn công giúp kiểm chứng dễ dàng. Tuy nhiên, điểm hạn chế chí mạng là hoàn toàn không thể phát hiện các cuộc tấn công chưa từng được công bố (Zero-day) hoặc các biến thể mã độc đã được làm rối (obfuscation) hoặc mã hóa lưu lượng.
 
+Trong dự án này, nhóm đã tự triển khai một công cụ phân tích cú pháp (parser) và nhân luật (engine) tương thích với định dạng luật của Suricata/Snort. Một luật chuẩn bao gồm:
+\begin{itemize}
+    \item \textbf{Header (Phần đầu):} Khai báo hành động (ví dụ: \texttt{alert}), giao thức mạng (ví dụ: \texttt{tcp}, \texttt{udp}, \texttt{http}), dải địa chỉ IP nguồn/đích, cổng dịch vụ nguồn/đích và hướng của luồng dữ liệu (\texttt{->} một chiều, hoặc \texttt{<>} hai chiều).
+    \item \textbf{Rule Options (Phần tùy chọn):} Được bao quanh bởi dấu ngoặc đơn, chứa các từ khóa điều khiển:
+    \begin{itemize}
+        \item \texttt{msg}: Chuỗi mô tả thông tin cảnh báo xuất ra log.
+        \item \texttt{content}: Chuỗi ký tự nhị phân hoặc văn bản cần tìm kiếm trong gói tin (hỗ trợ modifier như \texttt{nocase} - không phân biệt hoa thường).
+        \item \texttt{pcre}: Biểu thức chính quy tương thích Perl giúp khớp các mẫu phức tạp hơn.
+        \item \texttt{dns.query}: Từ khóa chỉ định vị trí đối sánh thuộc phần truy vấn của giao thức DNS.
+        \item \texttt{http.uri}, \texttt{http.method}, \texttt{http.header}: Các buffer tách biệt chứa dữ liệu HTTP để tăng hiệu năng tìm kiếm thay vì tìm trên toàn bộ gói tin thô.
+        \item \texttt{sid} (Signature ID): Định danh duy nhất cho luật đó.
+    \end{itemize}
+\end{itemize}
+
+Ví dụ một luật mẫu phát hiện truy vấn tên miền phục vụ kiểm thử độc hại:
 \begin{verbatim}
 alert dns any any -> any 53 (msg:"Custom DNS Query: example.com";
 dns.query; content:"example.com"; nocase; sid:1000101; rev:1;)
 \end{verbatim}
 
-\textit{(Trong ví dụ này, \texttt{example.com} chỉ được dùng làm domain demo, không phải là dấu hiệu độc hại thực sự).}
+\section{Thuật toán so khớp chuỗi trong NIDS}
+Trong các hệ thống NIDS dựa trên chữ ký, nhiệm vụ quan trọng nhất và tiêu tốn nhiều tài nguyên CPU nhất (thường chiếm tới $70\% - 80\%$ thời gian xử lý gói tin) là tìm kiếm hàng ngàn chuỗi ký tự (signatures) độc hại trong phần payload của hàng triệu gói tin đi qua mỗi giây. Để giải quyết bài toán này, các hệ thống IDS/IPS hiện đại như Suricata hay Snort không sử dụng phương pháp duyệt tuần tự thông thường mà áp dụng các thuật toán so khớp chuỗi tối ưu hóa cao:
 
+\subsection{Thuật toán Boyer-Moore (So khớp đơn mẫu)}
+Thuật toán Boyer-Moore là thuật toán tìm kiếm chuỗi đơn hiệu quả nhất trong thực tế. Khác với thuật toán tìm kiếm thông thường (so khớp từ trái sang phải), Boyer-Moore thực hiện so khớp các ký tự từ phải sang trái của mẫu (pattern) nhưng dịch chuyển mẫu từ trái sang phải trên chuỗi văn bản cần tìm kiếm (text). 
+Thuật toán tận dụng thông tin thu được từ các ký tự không khớp thông qua hai bảng dịch chuyển:
 \begin{itemize}
-    \item \textbf{Header luật:} xác định hành động, giao thức, địa chỉ IP, cổng và hướng lưu lượng.
-    \item \textbf{Options:} mô tả điều kiện cần so khớp như \texttt{content}, \texttt{pcre}, \texttt{dns.query}, \texttt{sid}, \texttt{priority}.
+    \item \textbf{Bad Character Rule (Quy tắc ký tự xấu):} Khi xảy ra lỗi không khớp tại ký tự $T[i] \neq P[j]$, thuật toán sẽ tìm kiếm ký tự $T[i]$ trong mẫu $P$. Nếu có, dịch chuyển mẫu để ký tự $T[i]$ trong mẫu trùng khớp với $T[i]$ trong văn bản. Nếu không có, dịch chuyển toàn bộ mẫu vượt qua vị trí $T[i]$.
+    \item \textbf{Good Suffix Rule (Quy tắc hậu tố tốt):} Nếu một phần hậu tố của mẫu khớp với văn bản trước khi xảy ra lỗi không khớp, thuật toán sẽ dịch chuyển mẫu đến vị trí tiếp theo mà hậu tố này (hoặc một tiền tố của mẫu) xuất hiện lại trong mẫu.
+\end{itemize}
+Nhờ hai quy tắc này, Boyer-Moore cho phép bỏ qua rất nhiều ký tự trong văn bản mà không cần kiểm tra, đạt độ phức tạp thời gian tốt nhất là $O(n/m)$ với $n$ là độ dài văn bản và $m$ là độ dài mẫu.
+
+\subsection{Thuật toán Aho-Corasick (So khớp đa mẫu)}
+Khi số lượng chữ ký tăng lên hàng chục ngàn, việc chạy thuật toán đơn mẫu như Boyer-Moore cho từng chữ ký trên mỗi gói tin sẽ gây ra suy giảm hiệu năng nghiêm trọng (độ phức tạp tỉ lệ thuận với số lượng chữ ký). Thuật toán Aho-Corasick giải quyết vấn đề này bằng cách xây dựng một máy trạng thái hữu hạn (Trie-based Finite State Automaton) chứa tất cả các chữ ký cần tìm kiếm.
+Máy trạng thái Aho-Corasick hoạt động dựa trên ba hàm cốt lõi:
+\begin{itemize}
+    \item \textbf{Goto function (Hàm chuyển trạng thái):} Dẫn dắt quá trình di chuyển từ trạng thái này sang trạng thái khác dựa trên ký tự tiếp theo trong văn bản. Nó tạo ra một cấu trúc cây phân cấp (Trie) cho tất cả các mẫu.
+    \item \textbf{Failure function (Hàm thất bại):} Khi một ký tự không khớp với bất kỳ nhánh con nào tại trạng thái hiện tại, hàm thất bại sẽ chỉ ra trạng thái tiếp theo cần chuyển đến (thường là hậu tố dài nhất của chuỗi hiện tại cũng là tiền tố của một mẫu khác trong cây). Hàm này giúp thuật toán không cần phải quay lui (backtrack) trên chuỗi văn bản đầu vào.
+    \item \textbf{Output function (Hàm đầu ra):} Liên kết các trạng thái với danh sách các mẫu được phát hiện tương ứng khi trạng thái đó được tiếp cận.
+\end{itemize}
+Nhờ cơ chế này, thuật toán Aho-Corasick có thể tìm kiếm đồng thời tất cả các chữ ký trong văn bản chỉ với một lần duyệt duy nhất. Độ phức tạp thời gian đạt mức tuyến tính $O(n + z)$ trong đó $n$ là độ dài văn bản và $z$ là số lần xuất hiện của các mẫu độc hại, hoàn toàn độc lập với số lượng chữ ký cài đặt. Đây là nền tảng của cơ chế quét \texttt{fast\_pattern} trong Suricata.
+
+\subsection{Vấn đề quay lui của Biểu thức chính quy (PCRE) và ReDoS}
+Mặc dù so khớp chuỗi tĩnh rất nhanh, kẻ tấn công có thể dễ dàng thay đổi một vài ký tự trong payload để né tránh. Do đó, các IDS cần dùng biểu thức chính quy (PCRE) để mô tả các biến thể tấn công linh hoạt hơn. Tuy nhiên, việc sử dụng các công cụ regex truyền thống dựa trên NFA (Nondeterministic Finite Automaton) có khả năng gây ra hiện tượng \textbf{Quay lui thảm khốc (Catastrophic Backtracking)}.
+Khi gặp một chuỗi đầu vào không khớp được thiết kế đặc biệt (ví dụ: khớp biểu thức \texttt{(a+)+} với chuỗi \texttt{aaaaaaaaaaaaaaaaaaaaaaaaaaaaab}), động cơ regex sẽ thử tất cả các tổ hợp quay lui có thể, dẫn đến độ phức tạp thời gian tăng theo cấp số nhân $O(2^n)$. Kẻ tấn công có thể lợi dụng lỗ hổng này để thực hiện tấn công từ chối dịch vụ vào chính hệ thống IDS (Regular Expression Denial of Service -- ReDoS). Vì lý do này, các IDS hiện đại thường sử dụng công cụ regex của Google (RE2) hoạt động dựa trên DFA (Deterministic Finite Automaton) để đảm bảo thời gian chạy tuyến tính, hoặc hạn chế nghiêm ngặt việc sử dụng các mẫu regex có cấu trúc lặp lồng nhau trong các file luật.
+
+\section{Phát hiện theo hành vi và Cửa sổ trượt}
+Khác với phát hiện theo chữ ký tập trung vào một gói tin đơn lẻ, Phát hiện theo hành vi (Behavior-based Detection) tập trung phân tích xu hướng hoặc mối liên hệ giữa các gói tin theo chuỗi thời gian. Phương pháp này đặc biệt hiệu quả trong việc nhận diện các kiểu tấn công do thám (reconnaissance) hoặc từ chối dịch vụ (DoS/DDoS) vốn không mang nội dung độc hại trong từng gói tin riêng lẻ nhưng lại tạo ra lưu lượng bất thường khi gộp lại.
+
+Để thực hiện điều này một cách tối ưu trong môi trường thời gian thực mà không làm tràn bộ nhớ, kỹ thuật **Cửa sổ trượt thời gian (Sliding Window)** được áp dụng.
+\begin{itemize}
+    \item Hệ thống duy trì một hàng đợi hai đầu (double-ended queue - \texttt{deque}) lưu trữ dấu vết thời gian (timestamps) của các gói tin nhận được từ mỗi địa chỉ IP nguồn trong khoảng thời gian $T$ giây (window size).
+    \item Với mỗi gói tin mới đến từ một nguồn, hệ thống tiến hành loại bỏ các bản ghi cũ có $t < t_{\text{current}} - T$ ở đầu hàng đợi.
+    \item Sau đó, thêm gói tin hiện tại vào cuối hàng đợi và kiểm tra xem tổng số gói tin hoặc số lượng thuộc tính duy nhất (ví dụ: các cổng đích khác nhau) có vượt quá ngưỡng $N$ quy định hay không. Nếu có, phát cảnh báo về hành vi bất thường.
 \end{itemize}
 
-Ưu điểm của phát hiện theo chữ ký là cảnh báo rõ ràng và dễ kiểm chứng. Hạn chế là hệ thống chỉ phát hiện tốt các mẫu đã được mô tả trước; nếu payload bị mã hóa, bị làm rối hoặc chưa có rule phù hợp thì khả năng bỏ sót sẽ tăng.
+Phương pháp này giúp phát hiện được các hành vi nguy hại mà không cần biết trước signature của cuộc tấn công, tuy nhiên thách thức lớn nhất là xác định ngưỡng $N$ và $T$ tối ưu cho từng hạ tầng mạng thực tế. Nếu đặt ngưỡng quá nhạy sẽ dẫn đến báo động giả hàng loạt (false positives) do lưu lượng hợp lệ của người dùng; ngược lại, nếu đặt ngưỡng quá cao sẽ làm mất tác dụng cảnh báo của hệ thống (false negatives).
 
-\section{Phát hiện theo hành vi}
-Phát hiện theo hành vi (Behavior-based Detection) quan sát chuỗi sự kiện theo thời gian thay vì chỉ xét một gói tin riêng lẻ. Trong bài tập này, cơ chế hành vi được triển khai bằng cửa sổ trượt thời gian. Hệ thống lưu các sự kiện gần nhất theo từng địa chỉ nguồn, loại bỏ các sự kiện đã quá hạn và kích hoạt cảnh báo khi số lượng hoặc đặc điểm sự kiện vượt ngưỡng.
+\section{Các kiểu tấn công được mô hình hóa trong bài tập lớn}
+Bài tập lớn thực hiện nghiên cứu, mô phỏng và phát hiện 4 dạng tấn công mạng phổ biến dưới góc độ lý thuyết giao thức:
 
-Các ví dụ được triển khai:
-
+\subsection{Quét cổng (Port Scanning)}
+Quét cổng là giai đoạn do thám đầu tiên trong vòng đời tấn công. Kẻ tấn công gửi các gói tin thăm dò tới một dải cổng dịch vụ của mục tiêu nhằm xác định trạng thái cổng (Open, Closed, Filtered) và hệ điều hành của nạn nhân.
+Các kỹ thuật quét cổng phổ biến bao gồm:
 \begin{itemize}
-    \item Một IP truy cập nhiều cổng TCP khác nhau trong thời gian ngắn có thể là quét cổng.
-    \item Một IP gửi quá nhiều ICMP Echo Request có thể là ping flood.
-    \item Một IP gửi quá nhiều gói TCP SYN có thể là SYN flood.
-    \item Các truy vấn DNS có nhãn quá dài hoặc entropy cao có thể là dấu hiệu DNS tunneling.
+    \item \textbf{TCP SYN Scan (Stealth/Half-open Scan):} Kẻ tấn công gửi gói tin với cờ \texttt{SYN} thiết lập. Nếu nhận được \texttt{SYN-ACK} từ mục tiêu, cổng đó đang mở; kẻ tấn công lập tức gửi gói \texttt{RST} để đóng kết nối thay vì hoàn thành cái bắt tay ba bước (\texttt{ACK}). Điều này giúp quét nhanh và tránh bị ghi log bởi các ứng dụng ở tầng trên.
+    \item \textbf{TCP FIN Scan:} Gửi gói tin chỉ có cờ \texttt{FIN}. Theo đặc tả RFC 793, nếu cổng đóng, hệ điều hành sẽ phản hồi bằng gói \texttt{RST}; nếu cổng mở, hệ điều hành sẽ lờ gói tin đi.
+    \item \textbf{TCP NULL Scan \& Xmas Scan:} NULL Scan gửi gói tin không bật bất kỳ cờ TCP nào. Xmas Scan bật đồng thời các cờ \texttt{FIN}, \texttt{PSH}, và \texttt{URG} (như một cây thông Noel sáng đèn). Cả hai đều lợi dụng phản hồi \texttt{RST} của cổng đóng để xác định trạng thái cổng, vượt qua các bộ lọc tường lửa thô sơ chỉ kiểm tra cờ \texttt{SYN}.
+\end{itemize}
+Hệ thống phát hiện quét cổng bằng cách theo dõi số lượng cổng đích duy nhất (\texttt{unique ports}) mà một địa chỉ IP nguồn gửi yêu cầu đến trong vòng $T$ giây với các tổ hợp cờ TCP tương ứng (\texttt{S}, \texttt{F}, rỗng, hoặc \texttt{FPU}).
+
+\subsection{Tấn công từ chối dịch vụ ICMP Flood}
+ICMP Flood (Ping Flood) là hình thức tấn công từ chối dịch vụ cổ điển. Kẻ tấn công gửi liên tục các gói tin truy vấn ICMP Echo Request (\texttt{Type 8}) tới địa chỉ IP của nạn nhân với tốc độ cực cao nhằm làm nghẽn băng thông đường truyền hoặc khiến CPU của thiết bị mạng bị quá tải do phải xử lý và phản hồi liên tục bằng gói tin ICMP Echo Reply (\texttt{Type 0}).
+Hệ thống phát hiện bằng cách đếm số lượng gói tin ICMP có \texttt{Type 8, 13, 17} từ một địa chỉ nguồn trong cửa sổ trượt. Việc loại trừ các gói tin ICMP Reply ra khỏi bộ đếm là cực kỳ quan trọng để tránh tình trạng báo động giả lên chính nạn nhân khi họ đang gửi phản hồi lại kẻ tấn công.
+
+\subsection{Tấn công từ chối dịch vụ TCP SYN Flood}
+TCP SYN Flood lợi dụng cơ chế hàng đợi kết nối (backlog queue) trong quá trình bắt tay ba bước của giao thức TCP.
+\begin{enumerate}
+    \item Kẻ tấn công gửi liên tục các gói tin \texttt{SYN} yêu cầu kết nối với địa chỉ IP nguồn giả mạo (spoofed IP) hoặc không tồn tại.
+    \item Máy chủ nạn nhân tiếp nhận, đưa kết nối vào hàng đợi nửa mở (Half-open Connection Queue / Backlog Queue), chuyển sang trạng thái \texttt{SYN-RECEIVED} và phản hồi bằng gói \texttt{SYN-ACK} tới địa chỉ IP nguồn giả mạo đó.
+    \item Do địa chỉ IP nguồn là giả mạo, máy chủ sẽ không bao giờ nhận được gói tin phản hồi \texttt{ACK} cuối cùng từ kẻ tấn công để hoàn tất kết nối. Kết nối nửa mở này sẽ được lưu giữ trong hàng đợi cho đến khi hết thời gian chờ (timeout).
+    \item Khi kẻ tấn công gửi hàng vạn gói tin \texttt{SYN} liên tục, hàng đợi backlog của máy chủ sẽ nhanh chóng bị lấp đầy, khiến máy chủ từ chối mọi yêu cầu kết nối TCP hợp lệ khác từ người dùng thông thường.
+\end{enumerate}
+NIDS phát hiện cuộc tấn công này bằng cách theo dõi tần suất các gói tin chỉ bật cờ \texttt{SYN} mà không bật cờ \texttt{ACK} nhắm tới một dịch vụ cụ thể trên máy chủ mục tiêu.
+
+\subsection{Kênh truyền độc hại qua DNS (DNS Tunneling)}
+DNS Tunneling là kỹ thuật đóng gói lưu lượng của giao thức khác (chẳng hạn như HTTP, SSH hoặc lệnh điều khiển botnet) vào trong các gói tin DNS hợp lệ nhằm vượt qua các thiết bị kiểm soát biên. Vì DNS là dịch vụ cốt lõi bắt buộc phải mở trên tường lửa để phân giải tên miền, kẻ tấn công có thể lợi dụng điều này để rò rỉ dữ liệu hoặc duy trì kênh kết nối ẩn (C2).
+Cơ chế hoạt động dựa trên cấu trúc phân cấp DNS: kẻ tấn công đăng ký một tên miền (ví dụ: \texttt{badsite.com}) và trỏ bản ghi Name Server (NS) về một máy chủ C2 do chúng kiểm soát. Khi mã độc gửi truy vấn phân giải tên miền phụ chứa dữ liệu mã hóa:
+$$\texttt{data\_chuyen\_di.badsite.com}$$
+Truy vấn này sẽ được chuyển tiếp qua các DNS Resolver hợp lệ trên Internet và cuối cùng gửi tới máy chủ C2 của kẻ tấn công. Máy chủ C2 sẽ trích xuất phần tên miền phụ để đọc dữ liệu và phản hồi lại mã độc dưới dạng các bản ghi DNS TXT, CNAME, hoặc A chứa lệnh điều khiển mới.
+
+Hệ thống phát hiện DNS Tunneling thông qua các dấu hiệu bất thường của chuỗi truy vấn DNS:
+\begin{itemize}
+    \item \textbf{Độ dài truy vấn (Query Length):} Tên miền phụ chứa dữ liệu đóng gói thường có độ dài rất lớn (gần ngưỡng giới hạn 253 ký tự của giao thức).
+    \item \textbf{Độ dài nhãn lớn nhất (Max Label Length):} Mỗi nhãn phân tách bởi dấu chấm có độ dài lớn (gần giới hạn 63 ký tự).
+    \item \textbf{Độ hỗn loạn thông tin (Shannon Entropy):} Các tên miền thông thường được đặt theo ngôn ngữ tự nhiên nên có tính lặp lại cao và độ hỗn loạn thấp. Ngược lại, dữ liệu mã hóa độc hại (thường dùng mã hóa Base64 hoặc Base32) có tính ngẫu nhiên rất lớn. Công thức toán học tính Entropy Shannon của một chuỗi ký tự $S$ là:
+    $$H(S) = - \sum_{i=1}^{n} P(x_i) \log_2 P(x_i)$$
+    Trong đó $P(x_i)$ là tần suất xuất hiện của ký tự thứ $x_i$ trong chuỗi $S$. Một tên miền phụ có độ dài nhãn lớn và entropy vượt quá ngưỡng $3.8$ liên tục sẽ bị hệ thống đưa vào diện nghi vấn DNS Tunneling.
 \end{itemize}
 
-Cách tiếp cận này không cần biết trước chính xác payload tấn công, nhưng phụ thuộc nhiều vào ngưỡng cấu hình. Trong prototype, các ngưỡng như 20 cổng/10 giây hoặc 100 gói/10 giây được chọn để phục vụ demo trong lab; khi áp dụng vào mạng thực tế cần đo baseline lưu lượng bình thường để giảm false positive. Ngưỡng quá thấp dễ tạo cảnh báo sai; ngưỡng quá cao có thể bỏ sót các cuộc tấn công chậm.
-
-\section{Các kiểu tấn công trong phạm vi bài tập}
-Báo cáo tập trung vào các tình huống có thể kiểm thử trực tiếp bằng hệ thống đã xây dựng.
-
-\subsection{Quét cổng}
-Quét cổng là bước thăm dò nhằm xác định dịch vụ đang mở trên máy mục tiêu. Dấu hiệu chính trong hệ thống là một địa chỉ nguồn gửi gói TCP tới nhiều cổng đích khác nhau trong cùng một cửa sổ thời gian.
-
-\subsection{ICMP Flood và SYN Flood}
-ICMP Flood tạo lượng lớn gói Echo Request để tiêu tốn băng thông hoặc tài nguyên xử lý. SYN Flood tạo nhiều yêu cầu TCP SYN chưa hoàn tất kết nối. Cả hai đều được phát hiện bằng bộ đếm theo nguồn trong cửa sổ thời gian.
-
-\subsection{DNS Tunneling}
-DNS có thể bị lợi dụng để truyền dữ liệu ra ngoài thông qua các nhãn dài, khó đọc, entropy cao. Trong bài tập lớn, DNS tunneling được nhận diện bằng dấu hiệu bất thường của chuỗi truy vấn trong cửa sổ thời gian. Các truy vấn khớp domain blacklist hoặc domain kiểm thử có thể được bổ sung bằng luật chữ ký tùy chỉnh, nhưng không nằm trong nhóm rule mặc định.
-
-\section{Giới hạn lý thuyết liên quan đến triển khai}
-Các cơ chế trên có một số giới hạn cần được hiểu đúng khi đánh giá kết quả:
-
+\section{Giới hạn lý thuyết của việc triển khai NIDS}
+Mặc dù NIDS là công cụ quan trọng, trên khía cạnh lý thuyết và thực tiễn triển khai vẫn tồn tại các giới hạn sau:
 \begin{itemize}
-    \item NIDS không nhìn thấy nội dung ứng dụng nếu lưu lượng được mã hóa bằng TLS mà không có cơ chế giải mã hợp lệ.
-    \item Nếu không tái tạo TCP stream, chữ ký có thể bỏ sót payload bị chia nhỏ qua nhiều gói tin.
-    \item Nếu không xử lý IP fragmentation, TCP segmentation và out-of-order packets, hệ thống có thể bỏ sót hoặc phân tích sai một số luồng dữ liệu.
-    \item Cảnh báo hành vi phụ thuộc vào ngưỡng và môi trường mạng cụ thể.
-    \item Các kỹ thuật encode, obfuscate hoặc chia nhỏ payload có thể né tránh signature matching đơn giản.
-    \item Hệ thống demo dùng Python và Scapy phù hợp cho học tập, nhưng không đại diện cho hiệu năng của IDS triển khai trong mạng doanh nghiệp.
+    \item \textbf{Mã hóa lưu lượng (Encryption Blindness):} Khi các giao thức chuyển dịch sang HTTPS (TLS 1.3), DoT (DNS over TLS), DoH (DNS over HTTPS), NIDS hoàn toàn không thể đọc được nội dung của gói tin (payload) để thực hiện đối sánh chữ ký nếu không có giải pháp giải mã trung gian (SSL/TLS Decryption).
+    \item \textbf{Thiếu khả năng lắp ráp luồng dữ liệu (No Stream Reassembly):} Các cuộc tấn công ứng dụng (như SQL Injection) có thể được kẻ tấn công chia nhỏ payload qua nhiều phân đoạn TCP (TCP Segmentation hoặc IP Fragmentation). Nếu NIDS phân tích từng gói tin độc lập (stateless) mà không tái cấu trúc lại luồng dữ liệu TCP (stream reassembly), hệ thống sẽ không phát hiện ra mã độc.
+    \item \textbf{Kỹ thuật né tránh (Evasion Techniques):} Kẻ tấn công có thể gửi các gói tin có thời gian sống (TTL) khác nhau hoặc chồng chéo dữ liệu (fragment overlapping) khiến NIDS nhận dạng một đằng nhưng hệ điều hành của nạn nhân lại xử lý một nẻo, dẫn đến việc bỏ lọt tấn công.
+    \item \textbf{Hiệu năng phần cứng và ngôn ngữ:} Việc sử dụng các ngôn ngữ bậc cao như Python kết hợp thư viện Scapy rất tốt cho việc nghiên cứu thử nghiệm học thuật, tuy nhiên trong môi trường mạng doanh nghiệp thực tế với băng thông lớn (Gigabit trở lên), hệ thống sẽ gặp hiện tượng nghẽn cổ chai CPU và rơi gói tin (packet dropping) hàng loạt. Các hệ thống thực tế phải sử dụng C/C++/Rust kết hợp các cơ chế bắt gói tin hiệu năng cao như DPDK hoặc PF\_RING.
 \end{itemize}

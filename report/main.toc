@@ -7,34 +7,47 @@
 \contentsline {section}{\numberline {1.5}Bố cục báo cáo}{5}{section.1.5}%
 \contentsline {chapter}{\numberline {2}Cơ sở lý thuyết}{6}{chapter.2}%
 \contentsline {section}{\numberline {2.1}IDS, IPS và NIDS}{6}{section.2.1}%
-\contentsline {section}{\numberline {2.2}Phát hiện theo chữ ký và IOC}{7}{section.2.2}%
-\contentsline {section}{\numberline {2.3}Phát hiện theo hành vi}{7}{section.2.3}%
-\contentsline {section}{\numberline {2.4}Các kiểu tấn công trong phạm vi bài tập}{7}{section.2.4}%
-\contentsline {subsection}{\numberline {2.4.1}Quét cổng}{7}{subsection.2.4.1}%
-\contentsline {subsection}{\numberline {2.4.2}ICMP Flood và SYN Flood}{8}{subsection.2.4.2}%
-\contentsline {subsection}{\numberline {2.4.3}DNS Tunneling}{8}{subsection.2.4.3}%
-\contentsline {section}{\numberline {2.5}Giới hạn lý thuyết liên quan đến triển khai}{8}{section.2.5}%
-\contentsline {chapter}{\numberline {3}Kiến trúc và Triển khai Hệ thống NIDS}{9}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Tổng quan kiến trúc}{9}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Thu thập và chuẩn hóa gói tin}{9}{section.3.2}%
-\contentsline {subsection}{\numberline {3.2.1}Capture}{9}{subsection.3.2.1}%
-\contentsline {subsection}{\numberline {3.2.2}PacketEvent}{10}{subsection.3.2.2}%
-\contentsline {section}{\numberline {3.3}Detection Engine}{10}{section.3.3}%
-\contentsline {section}{\numberline {3.4}Luật phát hiện tích hợp}{11}{section.3.4}%
-\contentsline {section}{\numberline {3.5}Luật chữ ký dạng Suricata-style subset}{11}{section.3.5}%
-\contentsline {section}{\numberline {3.6}Lưu trữ và dashboard}{12}{section.3.6}%
-\contentsline {chapter}{\numberline {4}Kịch bản Thử nghiệm và Đánh giá}{13}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Môi trường thử nghiệm}{13}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Khởi động hệ thống}{13}{section.4.2}%
-\contentsline {section}{\numberline {4.3}Các kịch bản kiểm thử}{14}{section.4.3}%
-\contentsline {subsection}{\numberline {4.3.1}Quét cổng bằng nmap}{14}{subsection.4.3.1}%
-\contentsline {subsection}{\numberline {4.3.2}ICMP Ping Flood}{14}{subsection.4.3.2}%
-\contentsline {subsection}{\numberline {4.3.3}TCP SYN Flood}{14}{subsection.4.3.3}%
-\contentsline {subsection}{\numberline {4.3.4}DNS tunneling}{14}{subsection.4.3.4}%
-\contentsline {subsection}{\numberline {4.3.5}DNS signature rule}{15}{subsection.4.3.5}%
-\contentsline {section}{\numberline {4.4}Đánh giá kết quả}{15}{section.4.4}%
-\contentsline {chapter}{\numberline {5}Kết luận và Hướng phát triển}{16}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Kết quả đạt được}{16}{section.5.1}%
-\contentsline {section}{\numberline {5.2}Hạn chế}{16}{section.5.2}%
-\contentsline {section}{\numberline {5.3}Hướng phát triển}{17}{section.5.3}%
-\contentsline {section}{\numberline {5.4}Kết luận}{17}{section.5.4}%
+\contentsline {section}{\numberline {2.2}Phát hiện theo chữ ký và Chỉ số thỏa hiệp (IOC)}{7}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Thuật toán so khớp chuỗi trong NIDS}{8}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Thuật toán Boyer-Moore (So khớp đơn mẫu)}{8}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Thuật toán Aho-Corasick (So khớp đa mẫu)}{8}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.3}Vấn đề quay lui của Biểu thức chính quy (PCRE) và ReDoS}{9}{subsection.2.3.3}%
+\contentsline {section}{\numberline {2.4}Phát hiện theo hành vi và Cửa sổ trượt}{9}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Các kiểu tấn công được mô hình hóa trong bài tập lớn}{10}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Quét cổng (Port Scanning)}{10}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.5.2}Tấn công từ chối dịch vụ ICMP Flood}{10}{subsection.2.5.2}%
+\contentsline {subsection}{\numberline {2.5.3}Tấn công từ chối dịch vụ TCP SYN Flood}{10}{subsection.2.5.3}%
+\contentsline {subsection}{\numberline {2.5.4}Kênh truyền độc hại qua DNS (DNS Tunneling)}{11}{subsection.2.5.4}%
+\contentsline {section}{\numberline {2.6}Giới hạn lý thuyết của việc triển khai NIDS}{11}{section.2.6}%
+\contentsline {chapter}{\numberline {3}Kiến trúc và Triển khai Hệ thống NIDS}{13}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Tổng quan kiến trúc}{13}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Thu thập và chuẩn hóa gói tin}{13}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Capture}{13}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}PacketEvent}{14}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}Detection Engine}{14}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Luật phát hiện tích hợp}{15}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Cơ chế chống tấn công cạn kiệt bộ nhớ (State Exhaustion DoS)}{15}{subsection.3.4.1}%
+\contentsline {section}{\numberline {3.5}Luật chữ ký dạng Suricata-style subset}{16}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Lưu trữ và Dashboard hiển thị}{16}{section.3.6}%
+\contentsline {subsection}{\numberline {3.6.1}Lưu trữ cảnh báo dạng Append-Only JSON Lines (JSONL)}{16}{subsection.3.6.1}%
+\contentsline {subsection}{\numberline {3.6.2}Cơ chế hiển thị trên Dashboard Flask}{17}{subsection.3.6.2}%
+\contentsline {chapter}{\numberline {4}Kịch bản Thử nghiệm và Đánh giá}{18}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Môi trường thử nghiệm}{18}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Khởi động hệ thống}{18}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Các kịch bản kiểm thử}{19}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Quét cổng bằng nmap}{19}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}ICMP Ping Flood}{19}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}TCP SYN Flood}{19}{subsection.4.3.3}%
+\contentsline {subsection}{\numberline {4.3.4}DNS tunneling}{19}{subsection.4.3.4}%
+\contentsline {subsection}{\numberline {4.3.5}DNS signature rule}{20}{subsection.4.3.5}%
+\contentsline {section}{\numberline {4.4}Phân tích cấu trúc nhật ký cảnh báo sinh ra (JSONL)}{20}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Cảnh báo hành vi: Quét cổng (Port Scan)}{20}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Cảnh báo hành vi: ICMP Ping Flood}{20}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}Cảnh báo hành vi: TCP SYN Flood}{21}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Cảnh báo bất thường: DNS Tunneling}{21}{subsection.4.4.4}%
+\contentsline {section}{\numberline {4.5}Đánh giá kết quả}{22}{section.4.5}%
+\contentsline {chapter}{\numberline {5}Kết luận và Hướng phát triển}{23}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Kết quả đạt được}{23}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Hạn chế}{23}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Hướng phát triển}{24}{section.5.3}%
+\contentsline {section}{\numberline {5.4}Kết luận}{24}{section.5.4}%
