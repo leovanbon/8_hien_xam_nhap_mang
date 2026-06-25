@@ -36,7 +36,7 @@ Hệ thống NIDS được xây dựng bằng Python 3 và tổ chức theo mô 
 
 \section{Thu thập và chuẩn hóa gói tin}
 \subsection{Capture}
-Module \texttt{nids/capture.py} cung cấp hai cách lấy dữ liệu: đọc từ tệp PCAP và sniff trực tiếp trên interface. Với live capture, Scapy gọi callback cho từng gói tin; nếu parser chuyển đổi thành công thì sự kiện sẽ được đưa vào detection engine.
+Module \texttt{nids/capture.py} cung cấp hai cách lấy dữ liệu: đọc từ tệp PCAP và sniff trực tiếp trên interface. Với việc bắt gói tin trực tiếp, Scapy gọi callback cho từng gói tin; nếu parser chuyển đổi thành công thì sự kiện sẽ được đưa vào detection engine.
 
 \begin{lstlisting}[language=Python, caption={Live capture bằng Scapy}]
 def sniff_live(interface: str, callback: PacketCallback, limit: int = 0) -> None:
@@ -51,7 +51,7 @@ def sniff_live(interface: str, callback: PacketCallback, limit: int = 0) -> None
 \end{lstlisting}
 
 \subsection{PacketEvent}
-Raw packet chứa nhiều trường phụ thuộc giao thức nên khó xử lý trực tiếp trong rule engine. Vì vậy, module \texttt{nids/parser.py} chuẩn hóa các trường cần thiết thành \texttt{PacketEvent}: thời gian, IP nguồn/đích, cổng nguồn/đích, giao thức, TCP flags, ICMP type, DNS query, payload text và các trường HTTP phổ biến.
+Raw packet chứa nhiều trường phụ thuộc giao thức nên khó xử lý trực tiếp trong rule engine. Vì vậy, module \texttt{nids/parser.py} chuẩn hóa các trường cần thiết thành \texttt{PacketEvent} gồm thời gian, IP nguồn, IP đích, cổng nguồn, cổng đích, giao thức, các cờ TCP, loại ICMP, truy vấn DNS, nội dung văn bản gói tin và các trường HTTP phổ biến.
 
 \begin{lstlisting}[language=Python, caption={Cấu trúc PacketEvent}]
 @dataclass(frozen=True)
@@ -75,6 +75,22 @@ class PacketEvent:
 
 Payload được giới hạn kích thước khi chuyển thành chuỗi để tránh tốn bộ nhớ và giảm chi phí so khớp. Đây là lựa chọn phù hợp cho demo, nhưng cũng là một giới hạn khi phân tích payload lớn hoặc payload bị chia nhỏ.
 
+\section{Bộ giải mã giao thức và chuẩn hóa dữ liệu}
+Quá trình chuyển đổi từ gói tin nhị phân thô sang cấu trúc sự kiện chuẩn hóa được thực hiện tuần tự qua các bước sau:
+\begin{enumerate}
+    \item Thư viện Scapy tiếp nhận luồng dữ liệu nhị phân từ card mạng hoặc tệp tin lưu trữ và ánh xạ thành các lớp đối tượng tương ứng.
+    \item Bộ giải mã tiến hành kiểm tra sự tồn tại của lớp giao thức IP. Tất cả các gói tin không chứa thông tin IP nguồn hoặc IP đích đều bị loại bỏ ngay lập tức để tiết kiệm tài nguyên hệ thống.
+    \item Tùy thuộc vào trường giao thức tại tầng vận chuyển, bộ giải mã sẽ đi sâu vào cấu trúc bên trong:
+    \begin{itemize}
+        \item Đối với TCP: trích xuất cổng nguồn, cổng đích và tổ hợp các cờ trạng thái để phục vụ nhận dạng quét cổng và SYN flood.
+        \item Đối với UDP: trích xuất cổng nguồn và cổng đích phục vụ định danh ứng dụng.
+        \item Đối với ICMP: trích xuất trường loại thông tin để phân loại các yêu cầu ping.
+    \end{itemize}
+    \item Tại tầng ứng dụng, nếu phát hiện cổng dịch vụ 53 hoặc cấu trúc gói tin DNS, bộ giải mã tiến hành trích xuất tên miền truy vấn từ phần câu hỏi của gói tin yêu cầu, đồng thời loại bỏ các gói tin phản hồi để tối ưu hiệu năng.
+    \item Nếu phát hiện dấu hiệu giao thức HTTP, bộ giải mã ứng dụng sẽ tách lọc các thông tin về phương thức yêu cầu, URI, máy chủ đích và định danh trình duyệt từ phần dữ liệu thô.
+    \item Toàn bộ các thông tin trên được đóng gói đồng bộ vào một đối tượng dữ liệu duy nhất, giúp đơn giản hóa việc viết luật phát hiện ở các tầng phía sau.
+\end{enumerate}
+
 \section{Detection Engine}
 Module \texttt{nids/engine.py} đóng vai trò điều phối. Mỗi \texttt{PacketEvent} được đếm vào thống kê giao thức, sau đó gửi đến \texttt{SlidingWindowRules}. Các cảnh báo sinh ra được ghi xuống \texttt{AlertStore}.
 
@@ -92,12 +108,28 @@ def process_event(self, event: PacketEvent) -> list[Alert]:
 \section{Luật phát hiện tích hợp}
 Các luật hành vi và anomaly được triển khai bằng cửa sổ trượt theo thời gian. Hệ thống lưu các sự kiện gần nhất theo IP nguồn và loại bỏ dữ liệu đã nằm ngoài khung thời gian cấu hình. Các ngưỡng trong bảng là giá trị lab/demo, chưa phải khuyến nghị production.
 
+Để lưu giữ vết thời gian của các gói tin trong cửa sổ trượt thời gian một cách tối ưu, hệ thống sử dụng hàng đợi hai đầu \texttt{collections.deque} thay vì danh sách thông thường \texttt{list}.
+\begin{itemize}
+    \item \textbf{Hiệu năng chèn và xóa:} Việc loại bỏ các gói tin cũ ở đầu hàng đợi đòi hỏi thao tác xóa ở đầu. Đối với Python \texttt{list}, thao tác \texttt{pop(0)} có độ phức tạp thời gian là $O(N)$ do phải dịch chuyển toàn bộ phần tử còn lại trong bộ nhớ. Đối với \texttt{deque}, thao tác \texttt{popleft()} chỉ mất thời gian $O(1)$, giúp hệ thống duy trì hiệu suất xử lý gói tin cực cao ở thời gian thực.
+    \item \textbf{Thuật toán loại bỏ phần tử hết hạn:}
+\end{itemize}
+
 \begin{lstlisting}[language=Python, caption={Loại bỏ sự kiện cũ trong cửa sổ thời gian}]
 @staticmethod
 def _drop_old_times(window: deque[float], now: float, seconds: int) -> None:
     while window and now - window[0] > seconds:
         window.popleft()
 \end{lstlisting}
+
+\subsection{Cơ chế chống tấn công State Exhaustion DoS}
+Một trong những điểm yếu lớn nhất của các hệ thống IDS/IPS lưu vết trạng thái là nguy cơ bị tấn công State Exhaustion DoS. Kẻ tấn công có thể giả mạo hàng triệu địa chỉ IP nguồn ngẫu nhiên để gửi gói tin qua NIDS. Nếu hệ thống tự động khởi tạo hàng đợi mới cho mỗi IP nguồn mà không có cơ chế dọn dẹp, bộ nhớ RAM của hệ thống sẽ nhanh chóng bị lấp đầy và dẫn đến sập toàn bộ NIDS.
+
+Để giải quyết vấn đề bảo mật này, hệ thống triển khai một thuật toán dọn dẹp theo thuật toán LRU định kỳ sau mỗi 1000 gói tin được xử lý:
+\begin{itemize}
+    \item Hệ thống đặt giới hạn số lượng nguồn theo dõi tối đa là $10.000$ địa chỉ nguồn thông qua biến \texttt{\_max\_tracked\_sources}.
+    \item Khi số lượng nguồn theo dõi vượt quá giới hạn này, hàm \texttt{\_cleanup\_tracked\_sources} sẽ tiến hành sắp xếp các địa chỉ IP theo mốc thời gian hoạt động gần nhất của chúng.
+    \item Hệ thống sau đó tự động giải phóng một nửa số lượng địa chỉ nguồn ít hoạt động nhất để nhường chỗ cho các nguồn mới, đảm bảo dung lượng bộ nhớ RAM luôn nằm trong tầm kiểm soát an toàn.
+\end{itemize}
 
 Các luật tích hợp gồm:
 
@@ -116,29 +148,39 @@ Các luật tích hợp gồm:
     \caption{Các detection rules tích hợp trong prototype}
 \end{table}
 
-Với port scan, prototype chỉ đếm các probe flags như SYN, FIN, NULL và Xmas. Xmas scan tương ứng FIN + PSH + URG. ACK scan có thể tạo false positive nếu không có state tracking đầy đủ, vì vậy phần phát hiện ACK scan chỉ nên xem là minh họa trong prototype.
+Với port scan, prototype chỉ đếm các probe flags như SYN, FIN, NULL và Xmas. Xmas scan tương ứng FIN + PSH + URG. ACK scan có thể tạo cảnh báo giả nếu không có state tracking đầy đủ, vì vậy phần phát hiện ACK scan chỉ nên xem là minh họa trong prototype.
 
 \section{Luật chữ ký dạng Suricata-style subset}
-Ngoài luật hành vi, hệ thống hỗ trợ một tập con cú pháp kiểu Suricata/Snort. Người dùng có thể truyền tệp luật qua tham số \texttt{--rules}. Trong lần thử nghiệm được lưu ở \texttt{data/alerts.jsonl}, luật chữ ký được kích hoạt là luật DNS kiểm tra truy vấn chứa \texttt{example.com}:
+Ngoài luật hành vi, hệ thống hỗ trợ một tập con cú pháp kiểu Suricata/Snort. Người dùng có thể truyền tệp luật qua tham số \texttt{--rules}. Trong lần thử nghiệm được lưu, luật chữ ký được kích hoạt là luật DNS kiểm tra truy vấn chứa \texttt{example.com}:
 
 \begin{lstlisting}[language=bash, breaklines=true, caption={Luật chữ ký dùng trong demo}]
 alert dns any any -> any 53 (msg:"Custom DNS Query: example.com"; dns.query; content:"example.com"; nocase; classtype:policy-violation; priority:3; sid:1000101; rev:1;)
 \end{lstlisting}
 
-Mục tiêu của phần này là minh họa cách một signature engine hoạt động: phân tích header luật, chọn buffer cần kiểm tra, sau đó so khớp nội dung hoặc biểu thức chính quy. Đây là \textit{Suricata-style subset}, không phải engine tương thích đầy đủ với Suricata/Snort.
+Mục tiêu của phần này là minh họa cách một signature engine hoạt động: phân tích header luật, chọn buffer cần kiểm tra, sau đó so khớp nội dung hoặc biểu thức chính quy. Đây là nguyên mẫu tập con, không phải engine tương thích đầy đủ với Suricata/Snort.
 
-Subset prototype hỗ trợ các thành phần cơ bản như header luật, \texttt{content}, \texttt{pcre}, \texttt{nocase}, một số sticky buffer DNS/payload và threshold đơn giản. Các tính năng chưa hỗ trợ đầy đủ gồm \texttt{depth/offset}, \texttt{distance/within}, \texttt{byte\_test}, \texttt{flowbits}, TCP stream inspection, \texttt{file\_data} và tối ưu \texttt{fast\_pattern}. Tùy chọn \texttt{flow} hiện chỉ được kiểm tra ở mức hướng cơ bản, chưa phải stateful TCP flow tracking như IDS production.
+Nguyên mẫu hỗ trợ các thành phần cơ bản như phần đầu luật, nội dung, biểu thức chính quy, không phân biệt chữ hoa chữ thường, một số bộ đệm dính DNS, nội dung gói tin và ngưỡng đơn giản. Các tính năng chưa hỗ trợ đầy đủ gồm độ sâu và độ lệch, khoảng cách và phạm vi, kiểm tra byte, cờ luồng, kiểm tra luồng TCP, dữ liệu tệp tin và tối ưu hóa mẫu quét nhanh. Tùy chọn luồng hiện chỉ được kiểm tra ở mức hướng cơ bản, chưa phải là cơ chế theo dõi luồng TCP đầy đủ trạng thái như các hệ thống thương mại.
 
-\section{Lưu trữ và dashboard}
-Cảnh báo được biểu diễn bằng \texttt{Alert} và ghi dưới dạng JSON Lines. Mỗi dòng là một cảnh báo độc lập nên hệ thống có thể append liên tục mà không cần đọc lại toàn bộ tệp.
-
-Dashboard trong \texttt{dashboard/app.py} đọc tệp cảnh báo, cache theo thời gian sửa đổi của file và hiển thị:
-
+\section{Lưu trữ và Dashboard hiển thị}
+\subsection{Lưu trữ cảnh báo dạng JSON Lines}
+Hệ thống sử dụng định dạng tệp JSON Lines thông qua lớp \texttt{AlertStore} để lưu trữ nhật ký cảnh báo. Mỗi cảnh báo mới xuất hiện sẽ được mã hóa thành một chuỗi JSON độc lập và kết thúc bằng ký tự xuống dòng.
+Quyết định thiết kế này dựa trên các đặc tính kỹ thuật quan trọng liên quan đến hiệu năng hệ thống:
 \begin{itemize}
-    \item tổng số cảnh báo,
-    \item số cảnh báo theo mức độ nghiêm trọng,
-    \item các IP nguồn xuất hiện nhiều nhất,
-    \item danh sách cảnh báo gần nhất.
+    \item \textbf{Độ phức tạp ghi tối ưu $O(1)$:} Đối với định dạng JSON chuẩn, mỗi khi có cảnh báo mới, hệ thống bắt buộc phải đọc toàn bộ nội dung file cũ vào bộ nhớ RAM, phân tích cú pháp sang kiểu dữ liệu danh sách của Python, thêm phần tử mới, chuyển đổi lại thành chuỗi JSON và ghi đè toàn bộ tệp tin lên đĩa cứng. Thao tác này có độ phức tạp thời gian tăng dần theo độ lớn của lịch sử cảnh báo $O(M)$. Ngược lại, đối với JSON Lines, hệ thống chỉ cần mở tệp ở chế độ ghi tiếp \texttt{"a"} và ghi trực tiếp dòng mới vào cuối tệp tin mà không cần quan tâm đến kích thước hiện tại của tệp. Thao tác này luôn đạt độ phức tạp $O(1)$.
+    \item \textbf{Độ tin cậy và Khôi phục:} Trong trường hợp hệ thống NIDS bị sập đột ngột, các dòng cảnh báo đã ghi trước đó vẫn hoàn toàn nguyên vẹn và không bị lỗi cấu trúc tệp tin.
+    \item \textbf{Tương thích hệ thống lớn:} Định dạng JSON Lines là định dạng chuẩn được hỗ trợ mặc định bởi các tác nhân thu thập log nổi tiếng như Filebeat, Fluentd hoặc Logstash để đẩy dữ liệu về hệ thống SIEM tập trung.
 \end{itemize}
 
+\subsection{Cơ chế hiển thị trên Dashboard Flask}
+Dashboard được xây dựng dựa trên framework Flask (\texttt{dashboard/app.py}). Để đảm bảo Dashboard luôn hiển thị thông tin trực quan mà không tạo ra gánh nặng I/O đọc tệp tin liên tục cho ổ cứng máy chủ, hệ thống áp dụng cơ chế tối ưu hóa sau:
+\begin{itemize}
+    \item \textbf{Bộ nhớ đệm theo mốc thời gian sửa đổi:} Trước khi thực hiện đọc và phân tích tệp tin \texttt{alerts.jsonl}, ứng dụng web kiểm tra thuộc tính mốc thời gian sửa đổi cuối cùng của tệp tin \texttt{os.path.getmtime}. Nếu tệp tin không có thay đổi so với lần đọc trước, Dashboard sẽ trả về ngay kết quả đã được cache sẵn trong bộ nhớ RAM mà không cần thực hiện thao tác I/O đọc ổ cứng.
+    \item \textbf{Phân tích thống kê thời gian thực:} Khi phát hiện tệp tin cảnh báo có sự thay đổi, Dashboard thực hiện đọc tệp, trích xuất dữ liệu để tính toán nhanh:
+    \begin{itemize}
+        \item Tổng số lượng cảnh báo đã kích hoạt.
+        \item Biểu đồ thống kê số lượng cảnh báo phân nhóm theo mức độ nghiêm trọng gồm cao, trung bình, thấp.
+        \item Phân tích danh sách các địa chỉ IP tấn công nhiều nhất hỗ trợ khoanh vùng mối đe dọa.
+        \item Danh sách hiển thị chi tiết mười cảnh báo gần nhất bao gồm đầy đủ bằng chứng thu thập được từ gói tin.
+    \end{itemize}
+\end{itemize}
 Dashboard phục vụ quan sát và trình diễn kết quả; phần phản ứng tự động như chặn IP hoặc cập nhật tường lửa chưa nằm trong phạm vi bài tập.

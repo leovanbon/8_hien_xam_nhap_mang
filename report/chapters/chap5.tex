@@ -2,47 +2,44 @@
 
 \section{Kết quả đạt được}
 Bài tập đã xây dựng được một hệ thống NIDS nhỏ gọn phục vụ học tập và trình diễn. Hệ thống hoàn chỉnh các thành phần chính của một pipeline phát hiện xâm nhập mạng:
-
 \begin{itemize}
-    \item Đọc lưu lượng từ PCAP hoặc live interface bằng Scapy.
-    \item Chuẩn hóa packet thành cấu trúc \texttt{PacketEvent}.
-    \item Phát hiện hành vi/anomaly bằng cửa sổ trượt thời gian với các ngưỡng lab/demo.
-    \item Phân tích một \textit{Suricata-style subset} để phát hiện chữ ký trong HTTP, DNS và payload.
-    \item Tách domain blacklist khỏi nhóm rule mặc định; nếu cần phát hiện domain cụ thể thì nạp bằng luật chữ ký tùy chỉnh.
-    \item Ghi cảnh báo ra JSON Lines và hiển thị qua dashboard Flask.
-    \item Có kịch bản demo để kiểm tra các rule chính trong môi trường lab.
+    \item Đọc lưu lượng từ file PCAP hoặc từ live interface bằng thư viện Scapy.
+    \item Chuẩn hóa cấu trúc gói tin thô thành đối tượng dữ liệu sự kiện chuẩn hóa \texttt{PacketEvent}.
+    \item Phát hiện hành vi bất thường bằng cửa sổ trượt thời gian với các ngưỡng cấu hình lab/demo.
+    \item Phân tích một Suricata-style subset để phát hiện các chữ ký trong HTTP, DNS và payload.
+    \item Tách biệt danh sách các tên miền độc hại khỏi nhóm luật mặc định để tăng tính tùy biến.
+    \item Ghi nhận thông tin cảnh báo ra định dạng JSON Lines và hiển thị trực quan thông qua Dashboard xây dựng bằng Flask.
+    \item Xây dựng kịch bản demo để kiểm tra các rule chính trong môi trường lab.
 \end{itemize}
 
-Kết quả quan trọng nhất của bài tập lớn là làm rõ cách các thành phần IDS phối hợp với nhau: capture cung cấp dữ liệu, parser chuẩn hóa dữ liệu, rule engine tạo cảnh báo, storage lưu lại kết quả và dashboard hỗ trợ quan sát.
+Kết quả quan trọng nhất của bài tập lớn là làm rõ cách các thành phần của hệ thống phát hiện xâm nhập phối hợp với nhau. Mô hình capture cung cấp dữ liệu đầu vào, bộ parser chuẩn hóa dữ liệu, rule engine tạo cảnh báo, storage ghi nhận kết quả và dashboard hỗ trợ quan sát.
 
 \section{Hạn chế}
-Hệ thống hiện tại vẫn có một số hạn chế kỹ thuật:
-
+Mặc dù đạt được mục tiêu học tập, hệ thống hiện tại vẫn tồn tại một số hạn chế kỹ thuật:
 \begin{itemize}
-    \item \textbf{Chỉ phát hiện, chưa ngăn chặn:} hệ thống không chặn gói tin, không reset kết nối và không tự động cập nhật tường lửa.
-    \item \textbf{Chưa xử lý lưu lượng mã hóa:} nội dung HTTPS/TLS không thể được kiểm tra bằng chữ ký nếu không có cơ chế giải mã hợp lệ.
-    \item \textbf{Chưa tái tạo TCP stream đầy đủ:} payload bị chia nhỏ qua nhiều gói tin có thể làm giảm hiệu quả của signature matching.
-    \item \textbf{Chưa xử lý đầy đủ fragmentation/segmentation:} IP fragmentation, TCP segmentation và out-of-order packets có thể làm sai lệch dữ liệu đầu vào của rule engine.
-    \item \textbf{Dễ bị evasion với payload biến đổi:} payload bị encode, obfuscate hoặc chia nhỏ có thể vượt qua rule content đơn giản.
-    \item \textbf{Phụ thuộc visibility của điểm giám sát:} SPAN/TAP có thể mất packet hoặc không nhìn thấy đủ hai chiều lưu lượng khi có asymmetric routing.
-    \item \textbf{Hiệu năng còn giới hạn:} Python và Scapy phù hợp cho demo, nhưng chưa phù hợp với môi trường có lưu lượng lớn nếu không tối ưu thêm.
-    \item \textbf{Phụ thuộc vào ngưỡng và luật:} chất lượng cảnh báo phụ thuộc vào cấu hình threshold, baseline từng mạng và độ đầy đủ của tập luật chữ ký.
+    \item \textbf{Chỉ phát hiện, chưa ngăn chặn:} Hệ thống chỉ dừng lại ở vai trò cảnh báo thụ động, chưa hỗ trợ các hành động chủ động như chặn gói tin, ngắt kết nối hoặc cập nhật cấu hình tường lửa.
+    \item \textbf{Chưa xử lý lưu lượng mã hóa:} Các nội dung truyền tải qua giao thức HTTPS hoặc TLS không thể kiểm tra bằng chữ ký tĩnh khi chưa có cơ chế giải mã gói tin trung gian.
+    \item \textbf{Chưa tái tạo TCP stream đầy đủ:} Payload bị chia nhỏ qua nhiều gói tin khác nhau có thể làm giảm hiệu quả của việc đối sánh signature.
+    \item \textbf{Chưa xử lý đầy đủ fragmentation và segmentation:} Các gói tin IP fragmentation, TCP segmentation và các gói tin đến sai thứ tự có thể làm sai lệch dữ liệu đầu vào của rule engine.
+    \item \textbf{Dễ bị evasion với payload biến đổi:} Kẻ tấn công có thể mã hóa hoặc làm rối payload để dễ dàng vượt qua các luật kiểm tra chuỗi tĩnh đơn giản.
+    \item \textbf{Phụ thuộc vào visibility của điểm giám sát:} Cổng cấu hình cổng gương Switch hoặc thiết bị SPAN/TAP có thể bị rơi gói tin hoặc không nhìn thấy đủ hai chiều lưu lượng khi hệ thống mạng thực hiện định tuyến bất đối xứng.
+    \item \textbf{Hiệu năng còn giới hạn:} Việc lập trình bằng ngôn ngữ Python kết hợp thư viện Scapy chỉ phù hợp cho mục đích nghiên cứu học tập, chưa thể đáp ứng môi trường mạng thực tế có băng thông lớn.
+    \item \textbf{Phụ thuộc vào ngưỡng và luật:} Chất lượng cảnh báo phụ thuộc hoàn toàn vào việc cấu hình threshold, baseline của từng hệ thống và tính đầy đủ của tập luật chữ ký được định nghĩa.
 \end{itemize}
 
 \section{Hướng phát triển}
 Các hướng cải tiến phù hợp với kiến trúc hiện tại gồm:
-
 \begin{itemize}
-    \item Bổ sung IP defragmentation và TCP stream reassembly để kiểm tra payload ở mức phiên thay vì từng gói riêng lẻ.
-    \item Bổ sung stateful protocol analysis cho TCP/HTTP/DNS và mở rộng parser rule theo hướng Snort/Suricata-like subset rõ ràng hơn.
-    \item Thêm whitelist/baseline học từ traffic bình thường để giảm false positive.
-    \item Thêm correlation engine để gom nhiều alert như port scan, flood hoặc HTTP SQLi thành incident có timeline.
-    \item Thêm cơ chế cấu hình rule và threshold qua tệp YAML hoặc giao diện dashboard.
-    \item Đánh giá trên PCAP lớn hoặc dataset công khai và báo cáo precision, recall, false positive rate.
-    \item Đo hiệu năng trên PCAP lớn và tối ưu luồng xử lý để giảm packet drop.
-    \item Tích hợp phản ứng bán tự động như xuất IOC, webhook hoặc cập nhật danh sách chặn cho firewall trong môi trường lab.
-    \item Xây dựng bộ kiểm thử với cả traffic bình thường và traffic tấn công để đánh giá false positive/false negative rõ ràng hơn.
+    \item Bổ sung cơ chế IP defragmentation và TCP stream reassembly để kiểm tra payload ở mức phiên truyền thông thay vì từng gói tin đơn lẻ.
+    \item Bổ sung stateful protocol analysis cho TCP, HTTP, DNS và mở rộng parser rule tương thích sâu hơn với định dạng luật Snort hoặc Suricata-like subset.
+    \item Tích hợp cơ chế tự học để thiết lập whitelist và baseline tự động từ lưu lượng bình thường nhằm giảm thiểu false positive.
+    \item Xây dựng correlation engine để gom nhiều cảnh báo riêng lẻ như quét cổng, flood cờ hoặc tấn công ứng dụng web thành một sự cố an ninh duy nhất theo dòng thời gian.
+    \item Thêm cơ chế cấu hình động các luật và ngưỡng thông qua tệp tin cấu hình YAML hoặc trực tiếp trên giao diện Dashboard.
+    \item Thực hiện đánh giá kiểm thử trên các bộ dữ liệu lưu lượng mạng công khai lớn để báo cáo các chỉ số về precision, recall và false positive rate.
+    \item Đo đạc hiệu năng xử lý trên các file PCAP dung lượng lớn và tối ưu hóa mã nguồn để giảm thiểu tối đa hiện tượng packet drop.
+    \item Tích hợp phản ứng bán tự động như xuất danh sách chỉ số thỏa hiệp độc hại hoặc gửi cảnh báo qua Webhook đến tường lửa để thực hiện chặn IP nguồn tấn công trong môi trường kiểm thử.
+    \item Xây dựng bộ kịch bản kiểm thử tự động gồm cả lưu lượng bình thường và lưu lượng tấn công để đánh giá chính xác tỷ lệ false positive và false negative.
 \end{itemize}
 
 \section{Kết luận}
-Hệ thống đã đáp ứng mục tiêu chính của bài tập lớn: minh họa được một NIDS hoạt động từ khâu thu thập gói tin đến sinh cảnh báo và trực quan hóa kết quả. Dù chưa phải hệ thống production, bài tập cung cấp nền tảng thực hành tốt để hiểu các kỹ thuật phát hiện xâm nhập mạng và các giới hạn khi triển khai IDS trong thực tế.
+Hệ thống đã đáp ứng hoàn toàn mục tiêu chính của bài tập lớn: minh họa trực quan một hệ thống NIDS hoạt động từ khâu thu thập gói tin đến sinh cảnh báo và hiển thị kết quả. Dù chỉ là một nguyên mẫu phục vụ học tập, bài tập đã cung cấp nền tảng thực hành tốt để hiểu rõ các kỹ thuật phát hiện xâm nhập mạng và các thách thức thực tế khi vận hành hệ thống giám sát an ninh mạng.
