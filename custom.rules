@@ -1,10 +1,19 @@
 # Custom Signature Rules for NIDS Demo
 
-# Detect SQL Injection in HTTP URI
+# Detect DNS query for specific domain (Scenario 5)
+alert dns any any -> any 53 (msg:"Custom DNS Query: example.com"; dns.query; content:"example.com"; nocase; classtype:policy-violation; priority:3; sid:1000101; rev:1;)
+
+# Detect SQL Injection in HTTP URI (Scenario 7)
 alert http any any -> any 80 (msg:"HTTP URI SQL Injection Attempt"; http.uri; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000001; rev:1;)
 
-# Detect sqlmap user-agent
+# Detect sqlmap user-agent (Scenario 6)
 alert http any any -> any 80 (msg:"sqlmap Scanner User-Agent Detected"; http.user_agent; content:"sqlmap"; nocase; classtype:attempted-recon; priority:2; sid:1000002; rev:1;)
 
-# Detect SQL Injection in POST body (using raw packet data)
+# Detect SQL Injection in POST body (using raw packet data) (Scenario 8)
 alert tcp any any -> any 80 (msg:"HTTP POST Body SQL Injection Attempt"; pkt_data; content:"' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000003; rev:1;)
+
+# Repeated Web Access Request Alert (Brute Force Detection Filter) (Scenario 9)
+alert http any any -> any 80 (msg:"Repeated Web Access Request Alert"; content:"GET"; detection_filter:track by_src, count 5, seconds 10; sid:900004; rev:1;)
+
+# Suspicious .env Configuration File Access (Scenario 10)
+alert http any any -> any 80 (msg:"Suspicious .env Configuration File Access"; http.uri; content:".env"; nocase; classtype:web-application-attack; priority:1; sid:1000005; rev:1;)
