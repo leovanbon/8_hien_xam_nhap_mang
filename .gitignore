@@ -1,6 +1,47 @@
-**/__pycache__/
+# ──────────────────────────── Python ────────────────────────────
+__pycache__/
 *.py[cod]
-venv/
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
 .venv/
-alerts.jsonl
-alerts.log
+venv/
+.mypy_cache/
+.ruff_cache/
+
+# ──────────────────────────── Data ─────────────────────────────
+data/*.jsonl
+
+# ──────────────────────────── LaTeX ────────────────────────────
+report/*.aux
+report/*.bbl
+report/*.bcf
+report/*.blg
+report/*.fdb_latexmk
+report/*.fls
+report/*.log
+report/*.nav
+report/*.out
+report/*.run.xml
+report/*.snm
+report/*.synctex.gz
+report/*.toc
+
+# ──────────────────────────── Beamer / pres ────────────────────
+pres/*.aux
+pres/*.log
+pres/*.nav
+pres/*.out
+pres/*.snm
+pres/*.synctex.gz
+pres/*.toc
+
+# ──────────────────────────── OS / Editor ──────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/

@@ -1,308 +1,254 @@
-# Simple NIDS Semester Project
+# Tổng quan
 
-This project is a small Network Intrusion Detection System written in Python.
-It can read traffic from a PCAP file or a live network interface, normalize
-packets into simple event objects, evaluate behavior/anomaly rules and a
-Suricata-style subset of content rules, write alerts to JSONL, and show the
-results in a Flask dashboard.
+Hệ thống NIDS nhỏ gọn viết bằng Python, phục vụ mục đích **học tập và trình diễn** các thành phần cốt lõi của một pipeline phát hiện xâm nhập mạng:
 
-The code is intentionally compact so it can be read as a learning project. It
-does not try to replace Suricata. The rule engine is a prototype
-Snort/Suricata-like rule syntax subset, not a production-compatible
-implementation.
+1. **Thu thập gói tin** — đọc PCAP hoặc sniff live interface bằng Scapy.
+2. **Chuẩn hóa** — chuyển gói tin thô thành đối tượng `PacketEvent` (IP, port, TCP flags, DNS query, HTTP fields…).
+3. **Phát hiện hành vi** — cửa sổ trượt thời gian cho port scan, ICMP flood, SYN flood, DNS tunneling.
+4. **Phát hiện chữ ký** — engine phân tích cú pháp Suricata-style subset (content, pcre, sticky buffers…).
+5. **Lưu trữ** — ghi cảnh báo ra JSON Lines (`data/alerts.jsonl`).
+6. **Dashboard** — Flask web UI hiển thị thống kê cảnh báo realtime.
 
-## What It Does
+```
+┌──────────┐     ┌───────────┐     ┌───────────────────┐     ┌─────────┐     ┌───────────┐
+│ Capture  │───▶│  Parser   │───▶│ Detection Engine  │───▶│ Storage │───▶│ Dashboard │
+│ (Scapy)  │     │PacketEvent│     │Behavior+Signature │     │ (JSONL) │     │  (Flask)  │
+└──────────┘     └───────────┘     └───────────────────┘     └─────────┘     └───────────┘
+```
 
-- Reads packets from a PCAP file or captures live traffic with Scapy.
-- Extracts normalized metadata such as IPs, ports, protocol, TCP flags, DNS
-  query names, raw payload text, and common HTTP request fields.
-- Detects behavior, anomaly, and signature patterns:
-  - TCP port scans
-  - ICMP ping floods
-  - TCP SYN floods using SYN packets without ACK
-  - DNS tunneling suspicion
-- Parses and evaluates user-provided Suricata-style subset rules for common
-  payload, HTTP, and DNS signatures.
-- Stores alerts as newline-delimited JSON in `data/alerts.jsonl` by default.
-- Shows alert counts, severity counts, top source IPs, and recent alerts in a
-  Flask dashboard.
-- Includes unit tests for behavior rules, rule parsing, sticky buffers, and
-  thresholds.
+---
 
-## Requirements
+# Cấu trúc thư mục
 
-- Python 3.10 or newer
-- `scapy` for PCAP/live packet parsing
-- `Flask` for the dashboard
-- Root or administrator permissions for many live capture interfaces
+```
+.
+├── main.py                   # CLI entry point (--pcap / --iface)
+├── custom.rules              # Luật chữ ký Suricata-style cho demo
+├── requirements.txt
+├── pyproject.toml
+│
+├── nids/                     # Core NIDS engine
+│   ├── capture.py            #   PCAP reader & live sniffer
+│   ├── parser.py             #   Scapy → PacketEvent normalization
+│   ├── engine.py             #   Orchestration & packet counters
+│   ├── models.py             #   PacketEvent & Alert dataclasses
+│   ├── http_utils.py         #   HTTP request-line & header parser
+│   ├── storage.py            #   JSONL alert writer
+│   └── rules/                #   Detection rule engine
+│       ├── behavior.py       #     Sliding-window behavior rules
+│       ├── engine.py         #     Suricata-style signature matcher
+│       ├── parser.py         #     Rule text → SuricataRule parser
+│       ├── models.py         #     SuricataRule & ContentMatch models
+│       ├── buffers.py        #     Sticky buffer resolver
+│       └── config.py         #     RuleConfig defaults
+│
+├── dashboard/
+│   ├── app.py                # Flask web application
+│   ├── static/style.css
+│   └── templates/index.html
+│
+├── scripts/
+│   ├── kali_attacks.sh       # Kịch bản 10 bài tấn công từ Kali
+│   └── demo_events.py        # Sinh cảnh báo giả lập (không cần mạng)
+│
+├── tests/
+│   └── test_rules.py         # Unit tests cho detection logic
+│
+├── report/                   # Báo cáo LaTeX (PDF: report/report.pdf)
+│   ├── main.tex
+│   ├── chapters/chap{1..5}.tex
+│   └── ...
+│
+└── pres/                     # Slide trình bày Beamer
+    ├── Slide_HUST.tex
+    └── Slide_HUST.pdf
+```
 
-Install dependencies from `requirements.txt`:
+---
+
+# Cài đặt
 
 ```bash
+# Clone & setup
+git clone <repo-url> && cd 8_hien_xam_nhap_mang
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Quick Start
+**Yêu cầu:** Python ≥ 3.10, `scapy` ≥ 2.5, `Flask` ≥ 3.0.  
+Live capture cần quyền root / sudo.
 
-Generate demo alerts without needing real traffic:
+---
 
-```bash
-python3 scripts/demo_events.py
-```
+# Sử dụng
 
-Start the dashboard:
-
-```bash
-python3 dashboard/app.py
-```
-
-Open:
-
-```text
-http://127.0.0.1:5000
-```
-
-Run the tests:
-
-```bash
-python3 -m unittest discover -s tests
-```
-
-## Analyze A PCAP
-
-Use `--pcap` to read packets from a capture file:
+## Phân tích file PCAP
 
 ```bash
 python3 main.py --pcap sample.pcap
+python3 main.py --pcap sample.pcap --alerts data/lab-run.jsonl   # custom output
 ```
 
-By default alerts are appended to:
-
-```text
-data/alerts.jsonl
-```
-
-Use a different alert file:
+## Live capture
 
 ```bash
-python3 main.py --pcap sample.pcap --alerts data/lab-run.jsonl
+sudo .venv/bin/python main.py --iface virbr0 --rules custom.rules --limit 0
 ```
 
-## Live Capture
+- `--iface` — network interface để sniff.
+- `--rules` — file luật chữ ký Suricata-style (nạp song song với luật hành vi mặc định).
+- `--limit 0` — sniff vô hạn (Ctrl+C để dừng).
 
-Use `--iface` to sniff a live interface:
+## Demo nhanh
 
 ```bash
-sudo .venv/bin/python main.py --iface eth0 --limit 500
+python3 scripts/demo_events.py      # sinh alerts giả lập
+python3 dashboard/app.py            # mở dashboard tại http://127.0.0.1:5000
 ```
 
-`--limit 0` means Scapy keeps sniffing until interrupted. Live capture often
-requires elevated privileges because the process needs access to raw packets.
-
-## Project Layout
-
-```text
-.
-├── main.py                  # CLI entry point for PCAP/live capture
-├── requirements.txt         # Python dependencies
-├── nids/
-│   ├── README.md            # Rule engine and core module details
-│   ├── capture.py           # PCAP reader and live sniffer wrappers
-│   ├── engine.py            # NIDS orchestration and counters
-│   ├── models.py            # PacketEvent and Alert dataclasses
-│   ├── parser.py            # Scapy packet normalization
-│   ├── rules.py             # Behavior rules and Suricata-style subset engine
-│   └── storage.py           # JSONL alert storage
-├── dashboard/
-│   ├── README.md            # Dashboard usage and data expectations
-│   ├── app.py               # Flask application
-│   ├── static/style.css     # Dashboard styles
-│   └── templates/index.html # Dashboard page
-├── scripts/
-│   └── demo_events.py       # Synthetic events for local demos
-└── tests/
-    └── test_rules.py        # Unit tests for detection logic
-```
-
-## Runtime Flow
-
-1. `main.py` receives either `--pcap` or `--iface`.
-2. `nids.capture` reads packets and passes each Scapy packet to
-   `nids.parser.packet_to_event`.
-3. `packet_to_event` converts supported packets into a `PacketEvent`.
-4. `NIDSEngine.process_event` updates counters and sends the event to
-   `SlidingWindowRules.evaluate`.
-5. `SlidingWindowRules` runs behavior/anomaly detections, then the
-   Suricata-style subset rule engine.
-6. Matching rules create `Alert` objects.
-7. `AlertStore` appends each alert to JSONL.
-8. `dashboard/app.py` reads the JSONL file and renders summary metrics plus the
-   latest 100 alerts.
-
-## Rule Engine Overview
-
-The rule engine has two layers:
-
-- Behavior detectors for stateful traffic patterns such as floods and port
-  scans.
-- A Suricata-style subset parser and matcher for signature rules.
-
-Suricata-style subset rule text can be passed through
-`RuleConfig.suricata_rules`, which makes it possible to keep behavior detections
-enabled while loading a separate signature ruleset. DNS blacklist matching is
-handled as a custom signature rule, not as a built-in behavior detector.
-
-### Detection Rule Defaults
-
-The built-in demo thresholds are active even when no custom signature rules are
-loaded. They are lab/demo values, not production thresholds:
-
-- `RULE-001` Port Scan: 20 unique TCP destination ports from one source in 10
-  seconds (`detection_method: behavior`).
-- `RULE-002` ICMP Ping Flood: 100 request-side ICMP packets from one source in
-  10 seconds (`detection_method: behavior`).
-- `RULE-003` TCP SYN Flood: 100 TCP SYN packets without ACK from one source to
-  one destination service in 10 seconds (`detection_method: behavior`).
-- `RULE-004` DNS Tunneling Suspicion: 5 suspicious DNS queries from one source
-  in 30 seconds. A DNS query is suspicious if it has a query name of at least
-  100 characters, a label of at least 45 characters, or a label of at least 24
-  characters with Shannon entropy of at least 3.8
-  (`detection_method: anomaly`).
-
-Example:
-
-```python
-from nids.rules import RuleConfig, SlidingWindowRules
-
-rules = SlidingWindowRules(
-    RuleConfig(
-        suricata_rules=(
-            'alert http any any -> any 80 (msg:"Suspicious User Agent"; '
-            'http.user_agent; content:"sqlmap"; nocase; '
-            'classtype:attempted-recon; priority:2; sid:900001; rev:1;)',
-        )
-    )
-)
-```
-
-Supported Suricata-style subset rule shape:
-
-```text
-action protocol src_ip src_port -> dst_ip dst_port (option:value; keyword;)
-```
-
-Supported header pieces:
-
-- Actions: `alert`
-- Protocols: `ip`, `tcp`, `udp`, `icmp`, `dns`, `http`, `http1`, `http2`,
-  `tcp-pkt`
-- Direction: `->`, `<-`, `<>`
-- Addresses: `any`, single IPs, CIDR ranges, simple negation with `!`, and
-  simple bracket lists
-- Ports: `any`, single ports, ranges such as `1000:2000`, open ranges such as
-  `:1024`, simple negation with `!`, and simple bracket lists
-
-Prototype-supported options:
-
-- `msg`
-- `sid`
-- `rev`
-- `classtype`
-- `priority`
-- `flow`
-- `content`
-- `pcre`
-- `nocase`
-- `fast_pattern`
-- `threshold`
-- `detection_filter`
-- Sticky buffers:
-  - `pkt_data`
-  - `raw_data`
-  - `dns.query`
-  - `http.method`
-  - `http.uri`
-  - `http.request_line`
-  - `http.header`
-  - `http.host`
-  - `http.user_agent`
-
-This project currently treats `fast_pattern` as rule metadata. It records the
-keyword and exposes it in alert evidence, but it does not build a multi-pattern
-prefilter like Suricata does. It also does not fully support `flow`,
-`depth/offset`, `distance/within`, `flowbits`, `byte_test`, TCP stream
-inspection, or `file_data`.
-
-## Alert Format
-
-Alerts are written as JSON objects, one per line:
-
-```json
-{
-  "attack_type": "HTTP SQLi",
-  "detection_method": "signature",
-  "description": "10.0.0.5 matched Suricata rule 900002: HTTP SQLi",
-  "destination_ip": "192.168.1.80",
-  "evidence": {
-    "action": "alert",
-    "classtype": "unknown",
-    "contents": [
-      {
-        "buffer": "http.uri",
-        "fast_pattern": false,
-        "nocase": true,
-        "pattern": "union"
-      }
-    ],
-    "protocol": "http",
-    "rev": "1",
-    "sid": "900002"
-  },
-  "rule_id": "900002",
-  "severity": "Informational",
-  "source_ip": "10.0.0.5",
-  "timestamp": "2026-06-06T00:00:00+00:00"
-}
-```
-
-Built-in rule `detection_method` values are `behavior` and `anomaly`.
-Rules loaded through `RuleConfig.suricata_rules` use `signature`.
-
-`priority` maps to severity:
-
-- `1`: `High`
-- `2`: `Medium`
-- `3`: `Low`
-- Missing or other values: `Informational`
-
-## Current Limitations
-
-- No IP defragmentation, TCP stream reassembly, or out-of-order segment
-  handling.
-- Payload split across multiple TCP segments, encoded, or obfuscated can evade
-  simple content matching.
-- TLS/HTTPS, DoH, and DoT contents are not visible unless the lab provides
-  appropriate decrypted visibility.
-- SPAN/TAP capture can lose packets or miss one side of asymmetric routing in
-  real networks.
-- Demo thresholds must be tuned against a real network baseline before any
-  production-like use.
-- DNS tunneling heuristics can false positive on legitimate CDN, tracking, DKIM,
-  ACME challenge, or service-discovery domains; use whitelist, qtype,
-  NXDOMAIN-rate, unique-subdomain, and reputation context in real deployments.
-
-## Testing
-
-Run all tests:
+### Chạy tests
 
 ```bash
 python3 -m unittest discover -s tests
 ```
 
-Compile-check the Python files:
+---
 
-```bash
-python3 -m compileall nids tests scripts dashboard main.py
+# Luật phát hiện
+
+## Hành vi (Behavior-based) — mặc định, luôn bật
+
+| Rule ID | Tấn công | Ngưỡng mặc định | Severity |
+|---|---|---|---|
+| `RULE-001` | Port Scan | ≥ 20 TCP dest ports / 10 s từ 1 source | Medium |
+| `RULE-002` | ICMP Ping Flood | ≥ 100 ICMP request / 10 s | High |
+| `RULE-003` | TCP SYN Flood | ≥ 100 SYN (no ACK) / 10 s → 1 service | High |
+| `RULE-004` | DNS Tunneling | ≥ 5 suspicious queries / 30 s | Medium |
+
+DNS Tunneling dùng 3 chỉ số bất thường: tổng query ≥ 100 ký tự, label ≥ 45 chars, hoặc Shannon entropy ≥ 3.8 (với label ≥ 24 chars).
+
+## Chữ ký (Signature-based) — nạp từ file `.rules`
+
+File [`custom.rules`](custom.rules) chứa 6 luật demo:
+
+| SID | Tấn công | Sticky Buffer |
+|---|---|---|
+| `1000101` | Custom DNS query (`example.com`) | `dns.query` |
+| `1000001` | SQL Injection GET | `http.uri` |
+| `1000002` | sqlmap User-Agent | `http.user_agent` |
+| `1000003` | SQL Injection POST | `pkt_data` |
+| `900004` | Brute Force (detection_filter) | `content` |
+| `1000005` | .env file access | `http.uri` |
+
+**Suricata-style subset hỗ trợ:**
+- Header: `alert`, protocols (`tcp`/`udp`/`icmp`/`dns`/`http`…), IP/port/CIDR, direction (`->`, `<>`)
+- Options: `msg`, `sid`, `rev`, `classtype`, `priority`, `flow`, `content`, `pcre`, `nocase`, `fast_pattern`, `threshold`, `detection_filter`
+- Sticky buffers: `pkt_data`, `raw_data`, `dns.query`, `http.method`, `http.uri`, `http.request_line`, `http.header`, `http.host`, `http.user_agent`
+
+---
+
+# Thực nghiệm (Lab Demo)
+
+## Mô hình mạng
+
 ```
+┌────────────────────┐         traffic          ┌─────────────────┐
+│  Kali Linux (ATK)  │◄───────────────────────▶│  Win10 (Victim)  │
+│  192.168.122.230   │                          │  192.168.122.54  │
+└────────────────────┘                          └─────────────────┘
+            │  sniff (promiscuous)
+            ▼
+   ┌─────────────────────────┐
+   │  Host (NIDS + Dashboard) │
+   │  192.168.122.1 / virbr0  │
+   └─────────────────────────┘
+```
+
+**Nền tảng ảo hóa:** KVM/QEMU (libvirt), mạng NAT `virbr0` subnet `192.168.122.0/24`.
+
+## Các bước chạy demo
+
+**1. Host — Khởi động Dashboard:**
+```bash
+source .venv/bin/activate
+python3 dashboard/app.py
+# → http://127.0.0.1:5000
+```
+
+**2. Host — Khởi động NIDS Engine:**
+```bash
+sudo .venv/bin/python main.py --iface virbr0 --rules custom.rules --limit 0
+```
+
+**3. Kali — Chạy kịch bản tấn công:**
+```bash
+chmod +x kali_attacks.sh
+sudo ./kali_attacks.sh
+```
+
+Script [`kali_attacks.sh`](scripts/kali_attacks.sh) chạy **10 kịch bản** tấn công:
+
+| # | Kịch bản | Luật | Công cụ |
+|---|---|---|---|
+| 1 | Nmap Port Scan | RULE-001 | `nmap -sS` |
+| 2 | ICMP Ping Flood | RULE-002 | `hping3 --icmp` |
+| 3 | TCP SYN Flood | RULE-003 | `hping3 -S` |
+| 4 | DNS Tunneling | RULE-004 | `dig` (high-entropy labels) |
+| 5 | Custom DNS Signature | SID 1000101 | `dig example.com` |
+| 6 | sqlmap User-Agent | SID 1000002 | `curl -A` |
+| 7 | SQL Injection GET | SID 1000001 | `curl` (URL-encoded) |
+| 8 | SQL Injection POST | SID 1000003 | `curl -X POST` |
+| 9 | Brute Force | SID 900004 | `curl` loop ×10 |
+| 10 | .env File Access | SID 1000005 | `curl /.env` |
+
+## Kết quả thực nghiệm
+
+Tất cả 10 kịch bản kích hoạt cảnh báo đúng (True Positive 100% trong môi trường lab). Chi tiết xem [báo cáo chương 4](report/chapters/chap4.tex).
+
+---
+
+# Định dạng cảnh báo (JSONL)
+
+```json
+{
+  "timestamp": "2026-06-25T06:57:04+00:00",
+  "rule_id": "RULE-001",
+  "attack_type": "Port Scan",
+  "detection_method": "behavior",
+  "severity": "Medium",
+  "source_ip": "192.168.122.230",
+  "destination_ip": "192.168.122.54",
+  "description": "192.168.122.230 contacted 20 unique TCP ports in 10 seconds",
+  "evidence": {
+    "count": 20,
+    "unique_ports": [21, 22, 23, 25, 53, 80, ...]
+  }
+}
+```
+
+Priority → Severity: `1` = High, `2` = Medium, `3` = Low, khác = Informational.
+
+---
+
+# Hạn chế
+
+- Không defrag IP, không reassemble TCP stream → payload chia nhỏ có thể bị bỏ sót.
+- Không giải mã TLS/HTTPS/DoH/DoT → chữ ký chỉ hoạt động trên plaintext.
+- Scapy + single-thread Python → không phù hợp mạng tốc độ cao.
+- Ngưỡng hành vi là giá trị lab/demo, cần tune theo baseline thực tế.
+- `flow` chỉ kiểm tra hướng cơ bản, chưa stateful TCP tracking.
+
+---
+
+# Tài liệu
+
+| Tài liệu | Vị trí |
+|---|---|
+| Báo cáo đầy đủ (PDF) | [`report/report.pdf`](report/report.pdf) |
+| Slide trình bày (PDF) | [`pres/Slide_HUST.pdf`](pres/Slide_HUST.pdf) |
+| Chi tiết Rule Engine | [`nids/README.md`](nids/README.md) |
+| Chi tiết Dashboard | [`dashboard/README.md`](dashboard/README.md) |
+
+---
+

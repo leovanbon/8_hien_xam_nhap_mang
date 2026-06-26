@@ -1,9 +1,0 @@
-# Extra Suricata-style test rules for quick lab verification.
-# Use this file when you want to prove custom rule loading/matching first.
-
-# This should alert during the script's normal background DNS traffic.
-alert dns any any -> any 53 (msg:"Custom DNS Query: example.com"; dns.query; content:"example.com"; nocase; classtype:policy-violation; priority:3; sid:1000101; rev:1;)
-
-# These two still require the target to accept HTTP on port 80 so curl sends payload.
-alert http any any -> any 80 (msg:"Custom HTTP Curl User-Agent"; http.user_agent; content:"curl/"; nocase; classtype:attempted-recon; priority:3; sid:1000102; rev:1;)
-alert http any any -> any 80 (msg:"Custom HTTP SQLi URI Encoded Marker"; http.uri; content:"/index.php?id=' OR '1'='1"; nocase; classtype:web-application-attack; priority:1; sid:1000103; rev:1;)

